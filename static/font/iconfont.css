@@ -1,0 +1,99 @@
+@font-face {
+  font-family: "iconfont"; /* Project id 4675421 */
+  src: url('iconfont.woff2?t=1727528191052') format('woff2'),
+       url('iconfont.woff?t=1727528191052') format('woff'),
+       url('iconfont.ttf?t=1727528191052') format('truetype');
+}
+
+.iconfont {
+  font-family: "iconfont" !important;
+  font-size: 16px;
+  font-style: normal;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-sousuo:before {
+  content: "\e601";
+}
+
+.icon-yinliang:before {
+  content: "\e87a";
+}
+
+.icon-duoxuanweixuanzhong:before {
+  content: "\eadb";
+}
+
+.icon-xuanzhong:before {
+  content: "\e63a";
+}
+
+.icon-mima:before {
+  content: "\e8b2";
+}
+
+.icon-youjiantou:before {
+  content: "\e658";
+}
+
+.icon-caidan:before {
+  content: "\e62c";
+}
+
+.icon-dingwei:before {
+  content: "\e62f";
+}
+
+.icon-xiugai:before {
+  content: "\e8cf";
+}
+
+.icon-shebeiguanli:before {
+  content: "\e604";
+}
+
+.icon-zuojiantou:before {
+  content: "\e642";
+}
+
+.icon-dianying:before {
+  content: "\e61f";
+}
+
+.icon-shijian:before {
+  content: "\e61d";
+}
+
+.icon-ico_yuyueguanli_jiedaiyuyue:before {
+  content: "\e8ba";
+}
+
+.icon-gailan:before {
+  content: "\e612";
+}
+
+.icon-shezhi:before {
+  content: "\e8b7";
+}
+
+.icon-danwei:before {
+  content: "\e635";
+}
+
+.icon-yaoqinghan:before {
+  content: "\e63e";
+}
+
+.icon-tuiliu:before {
+  content: "\e62b";
+}
+
+.icon-yishi:before {
+  content: "\e600";
+}
+
+.icon-tuiliu1:before {
+  content: "\e68d";
+}
+
