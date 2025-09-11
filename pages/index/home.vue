@@ -9,7 +9,7 @@
 			</template>
 		</comp-navbar>
 		<!-- <image :src="`/static/img/scence/scen${scenindex+1}.jpg`" mode="" class="bg_img"></image> -->
-		<image src="/static/img/scence/scence_new1.png" mode="aspectFill" class="bg_img"></image>
+		<image src="/static/img/red.gif" mode="aspectFill" class="bg_img"></image>
 		<!-- <image src="https://jakewinn.github.io/portals/img/ai_bg1.gif" mode="aspectFill" class="bg_img"></image> -->
 		<view class="rant_wrap" v-if="barrageList.length">
 			<view class="rant_content animate__animated  animate__infinite" v-for="(item,index) in barrageList"
@@ -341,6 +341,7 @@
 				line-height: 80rpx;
 				background: #fff;
 				border-radius: 67rpx;
+				box-shadow: 0rpx 8rpx 48rpx 0rpx rgba(22,52,151,0.3);
 
 				.send_input {
 					width: 90%;
