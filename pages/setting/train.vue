@@ -147,8 +147,6 @@ import {
 import {
   request
 } from '@/utils/request.js'
-import red from '@/static/img/red.gif'
-import blue from '@/static/img/blue.gif'
 import bluebg from '@/static/img/bluebg.png' // 添加蓝色背景图片
 import redbg from '@/static/img/redbg.png'   // 添加红色背景图片
 import girlActive from '@/static/img/girl_active.png'
@@ -171,7 +169,7 @@ const scrollHeight = ref(0) // 动态设置 scroll-view 的高度
 const avatarUrl = ref('') // 用户头像URL
 const isLoading = ref(false);
 const showBtnGroup = ref(false)
-const currentBg = ref(blue) // 当前背景图片
+const currentBg = ref('https://www.listentoyouai.com/images/lan.gif') // 当前背景图片
 const currentBgImage = ref(bluebg) // 当前背景图片
 const currentBtn = ref(0)
 const currentSex = ref(0)
@@ -443,11 +441,11 @@ const resetSex = () => {
 };
 
 const toggleBg = () => {
-  if (currentBg.value === blue) {
-    currentBg.value = red;
+  if (currentBg.value === 'https://www.listentoyouai.com/images/lan.gif') {
+    currentBg.value = 'https://www.listentoyouai.com/images/hong.gif';
     currentBgImage.value = redbg;
   } else {
-    currentBg.value = blue;
+    currentBg.value = 'https://www.listentoyouai.com/images/lan.gif';
     currentBgImage.value = bluebg;
   }
   currentBtn.value = 2

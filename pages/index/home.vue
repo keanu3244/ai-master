@@ -10,47 +10,47 @@
     </comp-navbar>
     <!-- <image :src="`/static/img/scence/scen${scenindex+1}.jpg`" mode="" class="bg_img"></image> -->
     <view class="bg_wrap_container">
-      <view class="bg" :style="{ backgroundImage: `url(${redbg})` }">
-        <image src="/static/img/red.gif" mode="aspectFill" class="bg_img"></image>
-      </view>
+      <view class="bg" :style="{ backgroundImage: `url(${redbg})` }"></view>
+      <image src="https://www.listentoyouai.com/images/hong.gif" mode="aspectFill" class="bg_img"></image>
     </view>
-    <!-- <image src="https://jakewinn.github.io/portals/img/ai_bg1.gif" mode="aspectFill" class="bg_img"></image> -->
-    <view class="rant_wrap" v-if="barrageList.length">
-      <view class="rant_content animate__animated  animate__infinite" v-for="(item, index) in barrageList" :key="index"
-        :style="getBarrageStyle(index)">
+  </view>
+  <!-- <image src="https://jakewinn.github.io/portals/img/ai_bg1.gif" mode="aspectFill" class="bg_img"></image> -->
+  <view class="rant_wrap" v-if="barrageList.length">
+    <view class="rant_content animate__animated  animate__infinite" v-for="(item, index) in barrageList" :key="index"
+      :style="getBarrageStyle(index)">
 
-        <view class="rant_item">{{ item }}</view>
+      <view class="rant_item">{{ item }}</view>
+    </view>
+
+  </view>
+  <view class="footer_wrap">
+    <view class="operate_wrap">
+      <view class="operate_item" @click="jumppage">
+        <image src="/static/img/lingting.png" class="ope_img"></image>
+        <text>听你说</text>
       </view>
 
-    </view>
-    <view class="footer_wrap">
-      <view class="operate_wrap">
-        <view class="operate_item" @click="jumppage">
-          <image src="/static/img/lingting.png" class="ope_img"></image>
-          <text>听你说</text>
-        </view>
-
-        <view class="operate_item" @click="handleJump2">
-          <image src="/static/img/scence/my.png" class="ope_img"></image>
-          <text>我的</text>
-        </view>
-        <!-- <view class="operate_item" @click="handleJump">
+      <view class="operate_item" @click="handleJump2">
+        <image src="/static/img/scence/my.png" class="ope_img"></image>
+        <text>我的</text>
+      </view>
+      <!-- <view class="operate_item" @click="handleJump">
 					<text>表单界面</text>
 				</view>-->
-        <!-- 	<view class="operate_item" @click="handleJump3">
+      <!-- 	<view class="operate_item" @click="handleJump3">
 					<text>AI信息</text>
 				</view>
 				 <view class="operate_item" @click="handledq">
 					<image src="/static/img/scence/qc.png" class="ope_img2"></image>
 					<text>打气</text>
 				</view> -->
-      </view>
-
-      <view class="send_wrap">
-        <input type="text" class="send_input" placeholder="吐槽你最近的烦心事" placeholder-class="send_pl" v-model="send_val" />
-        <image src="/static/img/scence/send1.png" class="send_img" @click="handleSend"></image>
-      </view>
     </view>
+
+    <view class="send_wrap">
+      <input type="text" class="send_input" placeholder="吐槽你最近的烦心事" placeholder-class="send_pl" v-model="send_val" />
+      <image src="/static/img/scence/send1.png" class="send_img" @click="handleSend"></image>
+    </view>
+  </view>
   </view>
   <comp-picker :show="scenshow" :columns="scencolumns" @cancel="scenshow = false" @confirm="handle_confirm"
     keyName="label" :defaultIndex="[scenindex]"></comp-picker>
@@ -247,7 +247,6 @@ const handleSend = () => {
       background-size: cover;
       background-position: center;
       background-repeat: no-repeat;
-      background-image: url('/static/img/redbg.png');
 
       /* #endif */
       .bg_img {

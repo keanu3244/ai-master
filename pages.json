@@ -1,71 +1,72 @@
 {
-	"pages": [ //pages数组中第一项表示应用启动页，参考：https://uniapp.dcloud.io/collocation/pages
-
-		{
-			"path": "pages/index/home",
-			"style": {
-				"navigationBarTitleText": "首页",
-				"navigationStyle": "custom"
-			}
-		},
-		{
-			"path": "pages/login/login",
-			"style": {
-				"navigationBarTitleText": "登录",
-				"navigationStyle": "custom"
-			}
-		},
-		{
-			"path": "pages/setting/info",
-			"style": {
-				"navigationBarTitleText": "用户协议与隐私政策"
-			}
-		},
-		{
-			"path": "pages/setting/train",
-			"style": {
-				"navigationBarTitleText": "AI教练"
-			}
-		},
-		{
-			"path": "pages/user/userinfo",
-			"style": {
-				"navigationBarTitleText": "欢迎来到听你说"
-			}
-		},
-		// {
-		// 	"path": "pages/user/userinfo_old",
-		// 	"style": {
-		// 		"navigationBarTitleText": "欢迎来到听你说-表单"
-		// 	}
-		// },
-		{
-			"path": "pages/user/my",
-			"style": {
-				"navigationBarTitleText": "我的"
-			}
-		},
-		{
-			"path": "pages/user/aiTeacherInfo",
-			"style": {
-				"navigationBarTitleText": "AI信息"
-			}
-		}
-	],
-	"globalStyle": {
-		"navigationBarTextStyle": "black",
-		"navigationBarTitleText": "",
-		"navigationBarBackgroundColor": "#ffffff",
-		"backgroundColor": "#ffffff"
-	},
-	"easycom": {
-		"autoscan": true,
-		"custom": {
-			"^uni-(.*)": "@/components/uni-$1.vue", // 匹配components目录内的vue文件
-			"^u--(.*)": "@/uni_modules/uview-plus/components/u-$1/u-$1.vue",
-			"^up-(.*)": "@/uni_modules/uview-plus/components/u-$1/u-$1.vue",
-			"^u-([^-].*)": "@/uni_modules/uview-plus/components/u-$1/u-$1.vue"
-		}
-	}
-
+  "pages": [ //pages数组中第一项表示应用启动页，参考：https://uniapp.dcloud.io/collocation/pages
+    {
+      "path": "pages/index/home",
+      "style": {
+        "navigationBarTitleText": "首页",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/login/login",
+      "style": {
+        "navigationBarTitleText": "登录",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/setting/info",
+      "style": {
+        "navigationBarTitleText": "用户协议与隐私政策"
+      }
+    },
+    {
+      "path": "pages/setting/train",
+      "style": {
+        "navigationBarTitleText": "AI教练"
+      }
+    },
+    {
+      "path": "pages/user/userinfo",
+      "style": {
+        "navigationBarTitleText": "欢迎来到听你说"
+      }
+    },
+    // {
+    // 	"path": "pages/user/userinfo_old",
+    // 	"style": {
+    // 		"navigationBarTitleText": "欢迎来到听你说-表单"
+    // 	}
+    // },
+    {
+      "path": "pages/user/my",
+      "style": {
+        "navigationBarTitleText": "我的"
+      }
+    },
+    {
+      "path": "pages/user/aiTeacherInfo",
+      "style": {
+        "navigationBarTitleText": "AI信息"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "",
+    "navigationBarBackgroundColor": "#ffffff",
+    "backgroundColor": "#ffffff"
+  },
+  "easycom": {
+    "autoscan": true,
+    "custom": {
+      "^uni-(.*)": "@/components/uni-$1.vue", // 匹配components目录内的vue文件
+      "^u--(.*)": "@/uni_modules/uview-plus/components/u-$1/u-$1.vue",
+      "^up-(.*)": "@/uni_modules/uview-plus/components/u-$1/u-$1.vue",
+      "^u-([^-].*)": "@/uni_modules/uview-plus/components/u-$1/u-$1.vue"
+    }
+  },
+  "mp-weixin": {
+    "lazyCodeLoading": "requiredComponents"
+  }
 }
