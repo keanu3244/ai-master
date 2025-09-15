@@ -10,47 +10,48 @@
     </comp-navbar>
     <!-- <image :src="`/static/img/scence/scen${scenindex+1}.jpg`" mode="" class="bg_img"></image> -->
     <view class="bg_wrap_container">
-      <view class="bg" :style="{ backgroundImage: `url(${redbg})` }"></view>
+      <image class="bg" src="/static/img/redbg.png">
+      </image>
       <image src="https://www.listentoyouai.com/images/hong.gif" mode="aspectFill" class="bg_img"></image>
-    </view>
-  </view>
-  <!-- <image src="https://jakewinn.github.io/portals/img/ai_bg1.gif" mode="aspectFill" class="bg_img"></image> -->
-  <view class="rant_wrap" v-if="barrageList.length">
-    <view class="rant_content animate__animated  animate__infinite" v-for="(item, index) in barrageList" :key="index"
-      :style="getBarrageStyle(index)">
 
-      <view class="rant_item">{{ item }}</view>
     </view>
+    <!-- <image src="https://jakewinn.github.io/portals/img/ai_bg1.gif" mode="aspectFill" class="bg_img"></image> -->
+    <view class="rant_wrap" v-if="barrageList.length">
+      <view class="rant_content animate__animated  animate__infinite" v-for="(item, index) in barrageList" :key="index"
+        :style="getBarrageStyle(index)">
 
-  </view>
-  <view class="footer_wrap">
-    <view class="operate_wrap">
-      <view class="operate_item" @click="jumppage">
-        <image src="/static/img/lingting.png" class="ope_img"></image>
-        <text>听你说</text>
+        <view class="rant_item">{{ item }}</view>
       </view>
 
-      <view class="operate_item" @click="handleJump2">
-        <image src="/static/img/scence/my.png" class="ope_img"></image>
-        <text>我的</text>
-      </view>
-      <!-- <view class="operate_item" @click="handleJump">
+    </view>
+    <view class="footer_wrap">
+      <view class="operate_wrap">
+        <view class="operate_item" @click="jumppage">
+          <image src="/static/img/lingting.png" class="ope_img"></image>
+          <text>听你说</text>
+        </view>
+
+        <view class="operate_item" @click="handleJump2">
+          <image src="/static/img/scence/my.png" class="ope_img"></image>
+          <text>我的</text>
+        </view>
+        <!-- <view class="operate_item" @click="handleJump">
 					<text>表单界面</text>
 				</view>-->
-      <!-- 	<view class="operate_item" @click="handleJump3">
+        <!-- 	<view class="operate_item" @click="handleJump3">
 					<text>AI信息</text>
 				</view>
 				 <view class="operate_item" @click="handledq">
 					<image src="/static/img/scence/qc.png" class="ope_img2"></image>
 					<text>打气</text>
 				</view> -->
-    </view>
+      </view>
 
-    <view class="send_wrap">
-      <input type="text" class="send_input" placeholder="吐槽你最近的烦心事" placeholder-class="send_pl" v-model="send_val" />
-      <image src="/static/img/scence/send1.png" class="send_img" @click="handleSend"></image>
+      <view class="send_wrap">
+        <input type="text" class="send_input" placeholder="吐槽你最近的烦心事" placeholder-class="send_pl" v-model="send_val" />
+        <image src="/static/img/scence/send1.png" class="send_img" @click="handleSend"></image>
+      </view>
     </view>
-  </view>
   </view>
   <comp-picker :show="scenshow" :columns="scencolumns" @cancel="scenshow = false" @confirm="handle_confirm"
     keyName="label" :defaultIndex="[scenindex]"></comp-picker>
@@ -247,16 +248,21 @@ const handleSend = () => {
       background-size: cover;
       background-position: center;
       background-repeat: no-repeat;
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      right: 0;
+    }
 
-      /* #endif */
-      .bg_img {
-
-        width: 700rpx;
-        height: 700rpx;
-        position: absolute;
-        bottom: calc(24rpx + env(safe-area-inset-bottom));
-        bottom: calc(24rpx + constant(safe-area-inset-bottom));
-      }
+    /* #endif */
+    .bg_img {
+      left: calc(50% - 350rpx);
+      width: 700rpx;
+      height: 700rpx;
+      position: absolute;
+      bottom: calc(24rpx + env(safe-area-inset-bottom));
+      bottom: calc(24rpx + constant(safe-area-inset-bottom));
     }
   }
 

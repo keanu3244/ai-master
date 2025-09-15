@@ -1,13 +1,12 @@
 <template>
   <view class="train_wrap">
     <view class="bg_wrap_container">
-      <view class="bg" :style="{ backgroundImage: `url(${currentBgImage})` }">
-        <image :src="currentBg" mode="aspectFill" class="bg_wrap"></image>
-      </view>
+      <image class="bg" :src="currentBgImage">
+      </image>
+      <image :src="currentBg" mode="aspectFill" class="bg_wrap"></image>
     </view>
     <!-- 使用 scroll-view 包裹内容，并设置 ref 和高度 -->
-    <scroll-view class="send_content" scroll-y="true" :scroll-top="scrollTop" ref="scrollView"
-      :style="{ height: scrollHeight + 'px' }">
+    <scroll-view class="send_content" scroll-y="true" :scroll-top="scrollTop" ref="scrollView">
       <template v-if="barrageList.length">
         <view class="send_item_group" v-for="(item, index) in barrageList" :key="index">
           <!-- 用户消息（右侧显示） -->
@@ -18,9 +17,6 @@
                 重新选择
               </view>
               <view class="reset_btn" @click="resetUserDate" v-if="item.messageType === 'userAge'">
-                重新选择
-              </view>
-              <view class="reset_btn" @click="resetAIDate" v-if="item.messageType === 'aiAge'">
                 重新选择
               </view>
               <view class="info">{{ item.q }}</view>
@@ -43,52 +39,49 @@
             </view>
             <!-- 正常回复 -->
             <view v-else class="left_response_container">
-              <view class="info">{{ item.a }}<view class="protocol">《用户隐私协议》</view>
+              <view class="info">{{ item.a }}<view v-if="!userInfo" class="protocol">《用户隐私协议》</view>
               </view>
-              <view class="agree_protocol">
-                同意协议，完成身份注册
-              </view>
-              <view class="sex_container">
-                <view class="sex_box" @click="toggleSex(1)" :class="currentSex == 1 ? 'boy_active' : ''">
-                  <image :src="currentSex == 1 ? boyActive : boyNormal" mode="" class="sex_icon"></image>
-                  男生
+              <template v-if="!userInfo">
+                <view class="agree_protocol">
+                  同意协议，完成身份注册
                 </view>
-                <view class="sex_box" @click="toggleSex(2)" :class="currentSex == 2 ? 'girl_active' : ''">
-                  <image :src="currentSex == 2 ? girlActive : girlNormal" mode="" class="sex_icon"></image>
-                  女生
+                <view class="sex_container">
+                  <view class="sex_box" @click="toggleSex(1)" :class="currentSex == 1 ? 'boy_active' : ''">
+                    <image :src="currentSex == 1 ? boyActive : boyNormal" mode="" class="sex_icon"></image>
+                    男生
+                  </view>
+                  <view class="sex_box" @click="toggleSex(2)" :class="currentSex == 2 ? 'girl_active' : ''">
+                    <image :src="currentSex == 2 ? girlActive : girlNormal" mode="" class="sex_icon"></image>
+                    女生
+                  </view>
                 </view>
-              </view>
-              <picker mode="multiSelector" :range="dateRange" :value="dateIndex" @change="onDateChange"
-                @columnchange="onColumnChange" class="picker">
-                <div class="age_container">{{ confirmedDate || '点击设置您的出生日期' }}</div>
-              </picker>
-              <picker mode="multiSelector" :range="aiDateRange" :value="aiDateIndex" @change="onAIDateChange"
-                @columnchange="onAIColumnChange" class="picker">
-                <div class="age_container">{{ confirmedAIDate || '点击设置AI的出生日期' }}</div>
-              </picker>
-              <view class="character_container">
-                <view class="character" :class="currentCharacter == 0 ? 'active' : ''"
-                  @click="() => currentCharacter = 0">
-                  成熟稳重
+                <picker mode="multiSelector" :range="dateRange" :value="dateIndex" @change="onDateChange"
+                  @columnchange="onColumnChange" class="picker">
+                  <div class="age_container">{{ confirmedDate || '点击设置您的出生日期' }}</div>
+                </picker>
+                <view class="character_container">
+                  <view class="character" :class="currentCharacter == 0 ? 'active' : ''"
+                    @click="() => currentCharacter = 0">
+                    成熟稳重
+                  </view>
+                  <view class="character" :class="currentCharacter == 1 ? 'active' : ''"
+                    @click="() => currentCharacter = 1">
+                    幽默风趣
+                  </view>
                 </view>
-                <view class="character" :class="currentCharacter == 1 ? 'active' : ''"
-                  @click="() => currentCharacter = 1">
-                  幽默风趣
-                </view>
-              </view>
+              </template>
             </view>
           </view>
         </view>
       </template>
-      <view class="confirm_btn">确认</view>
     </scroll-view>
     <view class="send_footer">
-      <view class="send_btns">
+      <view class="send_btns" v-if="userInfo">
         <view class="send_btn" @click="() => currentBtn = 0" :class="currentBtn == 0 ? 'active' : ''">
           <image :src="currentBtn == 0 ? jiaolian_sel : jiaolian" mode="aspectFill" class="btn"></image>
           教练模式
         </view>
-        <view class="send_btn" @click="() => currentBtn = 1" :class="currentBtn == 1 ? 'active' : ''">
+        <view class="send_btn" @click="() => handleCustomAI()" :class="currentBtn == 1 ? 'active' : ''">
           <image :src="currentBtn == 1 ? setting_sel : tow" mode="aspectFill" class="btn"></image>
           定制AI
         </view>
@@ -139,16 +132,10 @@
 <script setup>
 import {
   ref,
-  reactive,
-  onMounted,
   nextTick,
-  computed
+  computed,
+  onMounted
 } from 'vue';
-import {
-  request
-} from '@/utils/request.js'
-import bluebg from '@/static/img/bluebg.png' // 添加蓝色背景图片
-import redbg from '@/static/img/redbg.png'   // 添加红色背景图片
 import girlActive from '@/static/img/girl_active.png'
 import boyActive from '@/static/img/boy_active.png'
 import boyNormal from '@/static/img/boy_nor.png'
@@ -159,24 +146,24 @@ import jiaolian_sel from '@/static/img/jiaolian_sel.png'
 import jiaolian from '@/static/img/jiaolian.png'
 import setting_sel from '@/static/img/setting_sel.png'
 import tow from '@/static/img/tow.png'
+import { onShow } from '@dcloudio/uni-app'
 
 const barrageList = ref([]) // 存储所有聊天消息
 const send_val = ref('')	// 用户输入内容
 const num = ref(0)
 const requestBody = ref([])
 const scrollTop = ref(0) // 用于控制 scroll-view 的滚动位置
-const scrollHeight = ref(0) // 动态设置 scroll-view 的高度
 const avatarUrl = ref('') // 用户头像URL
 const isLoading = ref(false);
 const showBtnGroup = ref(false)
 const currentBg = ref('https://www.listentoyouai.com/images/lan.gif') // 当前背景图片
-const currentBgImage = ref(bluebg) // 当前背景图片
+const currentBgImage = ref('/static/img/bluebg.png') // 当前背景图片
 const currentBtn = ref(0)
 const currentSex = ref(0)
 const ageInfo = ref()
 const confirmedDate = ref('') // 用户确认后的日期显示
-const confirmedAIDate = ref('') // AI确认后的日期显示
 const currentCharacter = ref(0)
+const userInfo = ref(null)
 
 // 获取当前日期
 const now = new Date();
@@ -186,45 +173,42 @@ const currentDay = now.getDate();
 
 // 当前选中的索引（用户）
 const dateIndex = ref([currentYear - 1950, currentMonth - 1, currentDay - 1]);
-// 当前选中的索引（AI）
-const aiDateIndex = ref([currentYear - 1950, currentMonth - 1, currentDay - 1]);
 
 // 日期范围数据（用户）
 const years = ref([]);
 const months = ref([]);
 const days = ref([]);
 
-// 日期范围数据（AI）
-const aiYears = ref([]);
-const aiMonths = ref([]);
-const aiDays = ref([]);
+const currentMode = ref(0)
+
+const handleCustomAI = () => {
+  uni.navigateTo({
+    url: '/pages/setting/customAi'
+  })
+  // currentBtn.value = 1
+  // currentMode.value = 1
+}
 
 // 初始化日期数据
 const initDateData = () => {
   // 生成年份数据（1950-当前年份）
   for (let i = 1950; i <= currentYear; i++) {
     years.value.push(i + '年');
-    aiYears.value.push(i + '年');
   }
 
   // 生成月份数据
   for (let i = 1; i <= 12; i++) {
     months.value.push(i + '月');
-    aiMonths.value.push(i + '月');
   }
 
   // 初始化天数数据
   updateDays();
-  updateAIDays();
 };
 
 const clearAgeInfo = () => {
   years.value = []
   months.value = []
   days.value = []
-  aiYears.value = []
-  aiMonths.value = []
-  aiDays.value = []
 }
 
 // 更新天数数据（根据选中的年份和月份）
@@ -250,51 +234,16 @@ const updateDays = () => {
   }
 };
 
-// 更新AI天数数据（根据选中的年份和月份）
-const updateAIDays = () => {
-  const yearIndex = aiDateIndex.value[0];
-  const monthIndex = aiDateIndex.value[1];
-
-  const year = 1950 + yearIndex;
-  const month = monthIndex + 1;
-
-  // 计算当前月份的天数
-  let daysInMonth = new Date(year, month, 0).getDate();
-
-  // 更新天数数组
-  aiDays.value = [];
-  for (let i = 1; i <= daysInMonth; i++) {
-    aiDays.value.push(i + '日');
-  }
-
-  // 如果当前选中的日期大于新月份的天数，则调整为最后一天
-  if (aiDateIndex.value[2] >= daysInMonth) {
-    aiDateIndex.value[2] = daysInMonth - 1;
-  }
-};
 
 // 日期范围
 const dateRange = computed(() => {
   return [years.value, months.value, days.value];
 });
 
-// AI日期范围
-const aiDateRange = computed(() => {
-  return [aiYears.value, aiMonths.value, aiDays.value];
-});
-
 // 选中的日期显示（临时显示，用于选择器内部）
 const selectedDate = computed(() => {
   if (years.value.length && months.value.length && days.value.length) {
     return `${years.value[dateIndex.value[0]]}${months.value[dateIndex.value[1]]}${days.value[dateIndex.value[2]]}`;
-  }
-  return '';
-});
-
-// AI选中的日期显示（临时显示，用于选择器内部）
-const selectedAIDate = computed(() => {
-  if (aiYears.value.length && aiMonths.value.length && aiDays.value.length) {
-    return `${aiYears.value[aiDateIndex.value[0]]}${aiMonths.value[aiDateIndex.value[1]]}${aiDays.value[aiDateIndex.value[2]]}`;
   }
   return '';
 });
@@ -309,19 +258,6 @@ const onColumnChange = (e) => {
   // 如果年份或月份改变，需要更新天数
   if (column === 0 || column === 1) {
     updateDays();
-  }
-};
-
-// AI列改变事件
-const onAIColumnChange = (e) => {
-  const { column, value } = e.detail;
-
-  // 更新选中的索引
-  aiDateIndex.value[column] = value;
-
-  // 如果年份或月份改变，需要更新天数
-  if (column === 0 || column === 1) {
-    updateAIDays();
   }
 };
 
@@ -387,19 +323,6 @@ const onDateChange = (e) => {
   }
 };
 
-// AI日期选择改变事件
-const onAIDateChange = (e) => {
-  aiDateIndex.value = e.detail.value;
-  // 确认选择后更新显示文字
-  confirmedAIDate.value = selectedAIDate.value;
-
-  // 计算AI年龄并发送消息
-  const age = calculateAge(confirmedAIDate.value);
-  if (age > 0) {
-    sendMessage(`AI今年${age}岁`, 'aiAge');
-  }
-};
-
 // 确认选择
 const confirmSelection = () => {
   if (selectedDate.value) {
@@ -412,10 +335,11 @@ const confirmSelection = () => {
 // onLoad() => {
 //     this.fetchAvatarInfo();
 //   },
-onMounted(() => {
+onShow(() => {
   initDateData()
   // clearAgeInfo()
   const user = uni.getStorageSync('token');
+  userInfo.value = user
   if (!user) {
     uni.$u.toast('请先登录')
     uni.navigateTo({
@@ -423,8 +347,6 @@ onMounted(() => {
     })
     return;
   }
-  // 动态设置 scroll-view 的高度
-  setScrollHeight();
   loadRecords();
   fetchAvatarInfo(user)
 });
@@ -443,10 +365,10 @@ const resetSex = () => {
 const toggleBg = () => {
   if (currentBg.value === 'https://www.listentoyouai.com/images/lan.gif') {
     currentBg.value = 'https://www.listentoyouai.com/images/hong.gif';
-    currentBgImage.value = redbg;
+    currentBgImage.value = '/static/img/redbg.png';
   } else {
     currentBg.value = 'https://www.listentoyouai.com/images/lan.gif';
-    currentBgImage.value = bluebg;
+    currentBgImage.value = '/static/img/bluebg.png';
   }
   currentBtn.value = 2
 };
@@ -470,17 +392,6 @@ const resetUserDate = () => {
   );
   requestBody.value = requestBody.value.filter(item =>
     !barrageList.value.find(barrage => barrage.q === item.content && barrage.messageType === 'userAge')
-  );
-};
-
-const resetAIDate = () => {
-  confirmedAIDate.value = '';
-  // 移除AI年龄相关的消息
-  barrageList.value = barrageList.value.filter(item =>
-    !item.messageType || item.messageType !== 'aiAge'
-  );
-  requestBody.value = requestBody.value.filter(item =>
-    !barrageList.value.find(barrage => barrage.q === item.content && barrage.messageType === 'aiAge')
   );
 };
 
@@ -510,24 +421,6 @@ const fetchAvatarInfo = (user) => {
     },
     fail: (err) => {
       console.error('请求失败:', err);
-    }
-  });
-};
-
-// 动态设置 scroll-view 的高度
-const setScrollHeight = () => {
-  uni.getSystemInfo({
-    success: (res) => {
-      // 获取屏幕高度
-      const screenHeight = res.windowHeight;
-      // 获取底部输入区域的高度
-      const query = uni.createSelectorQuery().in(this);
-      query.select('.send_wrap').boundingClientRect(data => {
-        if (data) {
-          // scroll-view 的高度 = 屏幕高度 - 底部输入区域的高度
-          scrollHeight.value = screenHeight - data.height;
-        }
-      }).exec();
     }
   });
 };
@@ -755,14 +648,20 @@ page {
       background-repeat: no-repeat;
       display: flex;
       justify-content: center;
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      bottom: 0;
+    }
 
-      .bg_wrap {
-        width: 700rpx;
-        height: 700rpx;
-        position: absolute;
-        bottom: calc(24rpx + env(safe-area-inset-bottom));
-        bottom: calc(24rpx + constant(safe-area-inset-bottom));
-      }
+    .bg_wrap {
+      width: 700rpx;
+      height: 700rpx;
+      position: absolute;
+      bottom: calc(24rpx + env(safe-area-inset-bottom));
+      bottom: calc(24rpx + constant(safe-area-inset-bottom));
+      left: calc(50% - 350rpx);
     }
   }
 

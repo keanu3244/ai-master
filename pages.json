@@ -27,6 +27,12 @@
       }
     },
     {
+      "path": "pages/setting/customAi",
+      "style": {
+        "navigationBarTitleText": "欢迎定制您的AI"
+      }
+    },
+    {
       "path": "pages/user/userinfo",
       "style": {
         "navigationBarTitleText": "欢迎来到听你说"
