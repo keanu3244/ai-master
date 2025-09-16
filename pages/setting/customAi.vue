@@ -1,9 +1,9 @@
 <template>
   <view class="train_wrap">
     <view class="bg_wrap_container">
-      <image class="bg" :src="currentBgImage">
-      </image>
-      <image :src="currentBg" mode="aspectFill" class="bg_wrap"></image>
+      <!-- <image class="bg" :src="currentBgImage">
+      </image> -->
+      <image :src="currentBg" mode="aspectFill" class="bg"></image>
     </view>
     <!-- 使用 scroll-view 包裹内容，并设置 ref 和高度 -->
     <scroll-view class="send_content" scroll-y="true" :scroll-top="scrollTop" ref="scrollView">
@@ -72,6 +72,20 @@
       <view class="confirm_btn">确认</view>
     </scroll-view>
     <view class="send_footer">
+      <view class="send_btns">
+        <view class="send_btn" @click="handleTrainAI" :class="currentBtn == 0 ? 'active' : ''">
+          <image :src="currentBtn == 0 ? jiaolian_sel : jiaolian" mode="aspectFill" class="btn"></image>
+          教练模式
+        </view>
+        <view class="send_btn" @click="() => currentBtn = 1" :class="currentBtn == 1 ? 'active' : ''">
+          <image :src="currentBtn == 1 ? setting_sel : tow" mode="aspectFill" class="btn"></image>
+          定制AI
+        </view>
+        <view class="send_btn" :class="currentBtn == 2 ? 'active' : ''" @click="toggleBg">
+          <image :src="currentBtn == 2 ? qiehuan_sel : qiehuan" mode="aspectFill" class="btn"></image>
+          切换背景
+        </view>
+      </view>
       <view class="send_wrap">
         <input type="text" class="send_input" placeholder="吐槽你最近的烦心事" placeholder-class="send_pl" v-model="send_val" />
         <image src="/static/img/scence/send2.png" class="send_img" @click="handleSennd" />
@@ -113,12 +127,77 @@ const isLoading = ref(false);
 const showBtnGroup = ref(false)
 const currentBg = ref('https://www.listentoyouai.com/images/lan.gif') // 当前背景图片
 const currentBgImage = ref('/static/img/bluebg.png') // 当前背景图片
-const currentBtn = ref(0)
+const currentBtn = ref(1)
 const currentSex = ref(0)
 const ageInfo = ref()
 const confirmedDate = ref('') // 用户确认后的日期显示
 const confirmedAIDate = ref('') // AI确认后的日期显示
 const currentCharacter = ref(0)
+
+// 新增：GIF 预加载与缓存
+const lanGifUrl = 'https://www.listentoyouai.com/images/lan.gif'
+const hongGifUrl = 'https://www.listentoyouai.com/images/hong.gif'
+const gifCache = reactive({})
+const gifCacheStorageKey = 'gif_cache_map'
+
+// 初始化从本地读取缓存映射
+try {
+  const stored = uni.getStorageSync(gifCacheStorageKey)
+  if (stored && typeof stored === 'object') {
+    Object.assign(gifCache, stored)
+  }
+} catch (e) { }
+
+const persistGifCache = () => {
+  try {
+    uni.setStorage({ key: gifCacheStorageKey, data: { ...gifCache } })
+  } catch (e) { }
+}
+
+const preloadGif = (url) => {
+  return new Promise((resolve) => {
+    // 仅保留小程序/APP 端下载与持久化缓存
+    uni.downloadFile({
+      url,
+      success: (res) => {
+        if (res.statusCode === 200 && res.tempFilePath) {
+          uni.saveFile({
+            tempFilePath: res.tempFilePath,
+            success: (saveRes) => {
+              gifCache[url] = saveRes.savedFilePath || res.tempFilePath
+              persistGifCache()
+              resolve(gifCache[url])
+            },
+            fail: () => {
+              gifCache[url] = res.tempFilePath
+              persistGifCache()
+              resolve(gifCache[url])
+            }
+          })
+        } else {
+          resolve(url)
+        }
+      },
+      fail: () => resolve(url)
+    })
+  })
+}
+
+const applyCachedBg = (url) => {
+  currentBg.value = gifCache[url] || url
+}
+
+const preloadBackgrounds = async () => {
+  try {
+    await Promise.all([preloadGif(lanGifUrl), preloadGif(hongGifUrl)])
+  } catch (e) { }
+  // 保持当前语义的背景，但尝试使用缓存后的本地路径
+  if (currentBg.value.includes('hong')) {
+    applyCachedBg(hongGifUrl)
+  } else {
+    applyCachedBg(lanGifUrl)
+  }
+}
 
 // 获取当前日期
 const now = new Date();
@@ -136,12 +215,12 @@ const aiDays = ref([]);
 
 const currentMode = ref(0)
 
-const handleCustomAI = () => {
+const handleTrainAI = () => {
   uni.navigateTo({
-    url: '/pages/setting/customAi'
+    url: '/pages/setting/train'
   })
-  currentBtn.value = 1
-  currentMode.value = 1
+  currentBtn.value = 0
+  currentMode.value = 0
 }
 
 // 初始化日期数据
@@ -299,6 +378,8 @@ onShow(() => {
     })
     return;
   }
+  // 新增：预加载背景 GIF
+  preloadBackgrounds()
   loadRecords();
   fetchAvatarInfo(user)
 });
@@ -315,11 +396,11 @@ const resetSex = () => {
 };
 
 const toggleBg = () => {
-  if (currentBg.value === 'https://www.listentoyouai.com/images/lan.gif') {
-    currentBg.value = 'https://www.listentoyouai.com/images/hong.gif';
+  if (currentBg.value === lanGifUrl || currentBg.value.indexOf('lan.gif') !== -1) {
+    applyCachedBg(hongGifUrl);
     currentBgImage.value = '/static/img/redbg.png';
   } else {
-    currentBg.value = 'https://www.listentoyouai.com/images/lan.gif';
+    applyCachedBg(lanGifUrl);
     currentBgImage.value = '/static/img/bluebg.png';
   }
   currentBtn.value = 2

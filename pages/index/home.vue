@@ -10,9 +10,9 @@
     </comp-navbar>
     <!-- <image :src="`/static/img/scence/scen${scenindex+1}.jpg`" mode="" class="bg_img"></image> -->
     <view class="bg_wrap_container">
-      <image class="bg" src="/static/img/redbg.png">
-      </image>
-      <image src="https://www.listentoyouai.com/images/hong.gif" mode="aspectFill" class="bg_img"></image>
+      <!-- <image class="bg" src="/static/img/redbg.png">
+      </image> -->
+      <image src="https://www.listentoyouai.com/images/hong.gif" mode="aspectFill" class="bg"></image>
 
     </view>
     <!-- <image src="https://jakewinn.github.io/portals/img/ai_bg1.gif" mode="aspectFill" class="bg_img"></image> -->

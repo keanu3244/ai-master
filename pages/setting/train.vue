@@ -1,9 +1,9 @@
 <template>
   <view class="train_wrap">
     <view class="bg_wrap_container">
-      <image class="bg" :src="currentBgImage">
-      </image>
-      <image :src="currentBg" mode="aspectFill" class="bg_wrap"></image>
+      <!-- <image class="bg" :src="currentBgImage">
+      </image> -->
+      <image :src="currentBg" mode="aspectFill" class="bg"></image>
     </view>
     <!-- 使用 scroll-view 包裹内容，并设置 ref 和高度 -->
     <scroll-view class="send_content" scroll-y="true" :scroll-top="scrollTop" ref="scrollView">
