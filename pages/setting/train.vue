@@ -81,7 +81,7 @@
           <image :src="currentBtn == 0 ? jiaolian_sel : jiaolian" mode="aspectFill" class="btn"></image>
           教练模式
         </view>
-        <view class="send_btn" @click="() => handleCustomAI()" :class="currentBtn == 1 ? 'active' : ''">
+        <view class="send_btn" @click="handleCustomAI" :class="currentBtn == 1 ? 'active' : ''">
           <image :src="currentBtn == 1 ? setting_sel : tow" mode="aspectFill" class="btn"></image>
           定制AI
         </view>
@@ -182,7 +182,8 @@ const days = ref([]);
 const currentMode = ref(0)
 
 const handleCustomAI = () => {
-  uni.navigateTo({
+  // 使用 redirectTo 防止页面栈不断累积，避免 webview 数量超限
+  uni.redirectTo({
     url: '/pages/setting/customAi'
   })
   // currentBtn.value = 1

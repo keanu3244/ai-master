@@ -52,7 +52,7 @@
               <picker mode="multiSelector" :range="aiDateRange" :value="aiDateIndex" @change="onAIDateChange"
                 @columnchange="onAIColumnChange" class="picker">
                 <div class="age_container" :class="confirmedAIDate ? 'active' : ''">{{ confirmedAIDate || '点击设置AI的出生日期'
-                  }}
+                }}
                 </div>
               </picker>
               <view class="character_container">
@@ -216,7 +216,7 @@ const aiDays = ref([]);
 const currentMode = ref(0)
 
 const handleTrainAI = () => {
-  uni.navigateTo({
+  uni.redirectTo({
     url: '/pages/setting/train'
   })
   currentBtn.value = 0
