@@ -9,30 +9,40 @@
       <view class="info_container">
         <view class="item">
           <span>名称</span>
-          <view>
-            <span>{{ userInfo.nickName || '--' }}</span>
-            <image class="arrow" src="/static/img/arrow.png" mode="scaleToFill" />
+          <view @click="startEditName">
+            <template v-if="!editingName">
+              <span>{{ userInfo.nickName || '--' }}</span>
+              <image class="arrow" src="/static/img/arrow.png" mode="scaleToFill" />
+            </template>
+            <template v-else>
+              <input class="name-input" v-model="tempNickName" placeholder="请输入名称" confirm-type="done"
+                @confirm="confirmEditName" @blur="confirmEditName" />
+            </template>
           </view>
         </view>
         <view class="item">
           <span>性别</span>
-          <view>
-            <span>{{ genderText }}</span>
-            <image class="arrow" src="/static/img/arrow.png" mode="scaleToFill" />
-          </view>
+          <picker mode="selector" :range="genderOptions" :value="genderIndex" @change="onGenderChange">
+            <view>
+              <span>{{ genderText }}</span>
+              <image class="arrow" src="/static/img/arrow.png" mode="scaleToFill" />
+            </view>
+          </picker>
         </view>
         <view class="item">
           <span>生日</span>
-          <view>
-            <span>{{ userInfo.user_birthday || '--' }}</span>
-            <image class="arrow" src="/static/img/arrow.png" mode="scaleToFill" />
-          </view>
+          <picker mode="date" :value="userInfo.user_birthday || ''" @change="onBirthdayChange">
+            <view>
+              <span>{{ userInfo.user_birthday || '--' }}</span>
+              <image class="arrow" src="/static/img/arrow.png" mode="scaleToFill" />
+            </view>
+          </picker>
         </view>
       </view>
 
-      <view class="btn-group">
+      <!-- <view class="btn-group">
         <button v-if="!isLoggedIn" @click="login">登录</button>
-      </view>
+      </view> -->
 
       <view v-if="loading" class="loading">正在加载用户信息...</view>
       <view v-if="error" class="error">{{ error }}</view>
@@ -53,7 +63,11 @@ export default {
       capsuleHeight: 0,
       capsuleTop: 0,
       capsuleBottom: 0,
-      navBarHeight: 0
+      navBarHeight: 0,
+      // 编辑相关
+      editingName: false,
+      tempNickName: '',
+      genderOptions: ['男', '女']
     };
   },
   computed: {
@@ -71,6 +85,12 @@ export default {
       } else {
         return '--'; // 其他非法值也显示为 --
       }
+    },
+    genderIndex() {
+      const sex = parseInt(this.userInfo.sex);
+      if (sex === 0) return 0;
+      if (sex === 1) return 1;
+      return -1;
     }
   },
   // onLoad(query) {
@@ -82,6 +102,7 @@ export default {
   //   }
   // },
   onLoad() {
+    this.login()
     this.statusBarPx = this.getStatusBarHeight();
     this.getCapsuleInfo();
     this.fetchUserInfo();
@@ -164,6 +185,38 @@ export default {
       }
     },
 
+    // 名称编辑
+    startEditName() {
+      this.tempNickName = this.userInfo.nickName || '';
+      this.editingName = true;
+      this.$nextTick(() => {
+        // 小程序中无法直接 focus，保持简单
+      });
+    },
+    confirmEditName() {
+      const newName = (this.tempNickName || '').trim();
+      if (newName) {
+        this.$set(this.userInfo, 'nickName', newName);
+      }
+      this.editingName = false;
+    },
+
+    // 性别选择
+    onGenderChange(e) {
+      const index = parseInt(e.detail.value);
+      if (index === 0) {
+        this.$set(this.userInfo, 'sex', 0);
+      } else if (index === 1) {
+        this.$set(this.userInfo, 'sex', 1);
+      }
+    },
+
+    // 生日选择
+    onBirthdayChange(e) {
+      const date = e.detail.value;
+      this.$set(this.userInfo, 'user_birthday', date);
+    },
+
 
     async login() {
       try {
@@ -172,7 +225,7 @@ export default {
           provider: 'weixin'
         });
         if (res.code) {
-          console.log(res.code);
+          console.log('code', res.code);
           // 发送code到后端
           const callbackRes = await uni.request({
             url: 'https://www.listentoyouai.com:80/chat_login/wechat/auth_login',
@@ -347,6 +400,16 @@ export default {
       height: 40rpx;
       margin-left: 10rpx;
     }
+
+    .name-input {
+      width: 400rpx;
+      height: 64rpx;
+      padding: 0 16rpx;
+      border: 1rpx solid #E6E9EC;
+      border-radius: 10rpx;
+      font-size: 28rpx;
+      background: #fff;
+    }
   }
 
   .item:last-child {
@@ -403,5 +466,6 @@ export default {
   margin-top: 15px;
   color: #999;
   font-size: 14px;
+  text-align: center;
 }
 </style>

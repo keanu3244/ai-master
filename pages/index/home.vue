@@ -296,15 +296,20 @@ const handleSend = () => {
     .rant_item {
       width: fit-content;
       height: 72rpx;
-      padding: 0 24rpx;
+      padding: 16rpx 24rpx;
       margin-bottom: 24rpx;
-      line-height: 72rpx;
-      font-size: 26rpx;
-      color: #1E1E1E;
+      font-family: PingFang SC, PingFang SC;
+      font-weight: normal;
+      font-size: 28rpx;
+      color: #4B052F;
+      line-height: 40rpx;
+      text-align: left;
+      font-style: normal;
+      text-transform: none;
       // background: linear-gradient(180deg, #FFFFFF 0%, #FFF9F2 100%);
-      background-color: #fff;
-      border-radius: 36rpx 36rpx 0px 36rpx;
-      border: 1px solid rgba(0, 0, 0, 0.1);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 249, 242, 0.6) 100%);
+      border-radius: 36rpx 36rpx 0rpx 36rpx;
+      border: 1rpx solid rgba(255, 255, 255, 0.8);
       box-sizing: border-box;
     }
   }
