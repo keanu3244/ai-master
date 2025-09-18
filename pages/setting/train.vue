@@ -344,7 +344,7 @@ onShow(() => {
   if (!user) {
     uni.$u.toast('请先登录')
     uni.navigateTo({
-      url: '/pages/user/my'
+      url: '/pages/login/login'
     })
     return;
   }
@@ -413,7 +413,7 @@ const fetchAvatarInfo = (user) => {
       else if (res.statusCode === 401) {
         uni.$u.toast('toekn失效，请重新登录')
         uni.navigateTo({
-          url: '/pages/user/my'
+          url: 'pages/login/login'
         })
       }
       else {
@@ -483,7 +483,7 @@ const loadRecords = () => {
       else if (res.statusCode === 401) {
         uni.$u.toast('请先登录')
         uni.navigateTo({
-          url: '/pages/user/my'
+          url: 'pages/login/login'
         })
       }
     },
@@ -510,7 +510,7 @@ const handleSennd = async () => {
   if (!user) {
     uni.$u.toast('请先登录')
     uni.navigateTo({
-      url: '/pages/user/my'
+      url: 'pages/login/login'
     })
     return;
   }

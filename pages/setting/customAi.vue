@@ -374,7 +374,7 @@ onShow(() => {
   if (!user) {
     uni.$u.toast('请先登录')
     uni.navigateTo({
-      url: '/pages/user/my'
+      url: 'pages/login/login'
     })
     return;
   }

@@ -79,23 +79,76 @@
 	    });
 	}
 
-	const handleLogin = () => {
+	const handleLogin =async () => {
 		if (!aloneChecked.value) {
 			uni.$u.toast('请勾选用户协议与隐私政策')
 			return;
 		}
 		
-		uni.login({
-			provider: 'weixin',
-			success: (res) => {
-			  // 获取登录凭证 code
-			  const code = res.code;
-			  loginWithCode(code);
-			},
-			fail: (err) => {
-				uni.$u.toast('微信登录失败:', err);
-			}
-		});
+		// uni.login({
+		// 	provider: 'weixin',
+		// 	success: (res) => {
+		// 	  // 获取登录凭证 code
+		// 	  const code = res.code;
+		// 	  loginWithCode(code);
+		// 	},
+		// 	fail: (err) => {
+		// 		uni.$u.toast('微信登录失败:', err);
+		// 	}
+		// });
+ try {
+   this.error = null;
+   let res = await uni.login({
+     provider: 'weixin'
+   });
+   if (res.code) {
+     console.log('code', res.code);
+     // 发送code到后端
+     const callbackRes = await uni.request({
+       url: 'https://www.listentoyouai.com:80/chat_login/wechat/auth_login',
+       //url: 'http://127.0.0.1:5001/chat_login/wechat/auth_login',
+       method: 'POST',
+       header: {
+         'Content-Type': 'application/json'
+       },
+       data: {
+         code: res.code
+       }
+     });
+     
+     if (callbackRes.statusCode === 200) {
+       const tokenData = callbackRes.data;
+       uni.setStorageSync('token', tokenData.access_token);
+       uni.setStorageSync('username', tokenData.username);
+       this.isLoggedIn = true;
+       this.userInfo = {
+         nickName: tokenData.username || '未命名',
+         avatarUrl: tokenData.headimg || '/static/img/home/test.jpg',
+         sex: tokenData.sex,
+         user_birthday: tokenData.user_birthday
+       };
+     
+       // 可选：跳转到个人中心
+       uni.reLaunch({ url: '/pages/user/my' });
+     }
+     else if (callbackRes.statusCode === 403) {
+       uni.$u.toast('用户不存在，请注册')
+       uni.navigateTo({
+         url: '/pages/user/userinfo'
+       })
+     }
+     else {
+        uni.$u.toast('登录失败，请重试')
+       // this.error = '登录失败，请重试';
+     }
+   } else {
+     // this.error = '获取微信登录凭证失败';
+     uni.$u.toast('获取微信登录凭证失败')
+   }
+ } catch (err) {
+   console.error('请求失败:', err);
+   // this.error = '网络异常，请检查网络连接';
+ }
 	}
 </script>
 
