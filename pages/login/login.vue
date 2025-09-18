@@ -97,7 +97,7 @@
 		// 	}
 		// });
  try {
-   this.error = null;
+   // this.error = null;
    let res = await uni.login({
      provider: 'weixin'
    });
