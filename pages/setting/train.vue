@@ -339,15 +339,6 @@ const confirmSelection = () => {
 onShow(() => {
   initDateData()
   // clearAgeInfo()
-  const user = uni.getStorageSync('token');
-  userInfo.value = user
-  if (!user) {
-    uni.$u.toast('请先登录')
-    uni.navigateTo({
-      url: '/pages/login/login'
-    })
-    return;
-  }
   loadRecords();
   fetchAvatarInfo(user)
 });

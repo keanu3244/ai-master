@@ -101,11 +101,15 @@ export default {
   //     this.fetchUserInfo();
   //   }
   // },
+  onShow(){
+    const userInfos = uni.getStorageSync('userInfo');
+    userInfo.value = userInfos
+  },
   onLoad() {
-    this.login()
+    // this.login()
     this.statusBarPx = this.getStatusBarHeight();
     this.getCapsuleInfo();
-    this.fetchUserInfo();
+    // this.fetchUserInfo();
   },
   methods: {
     getCapsuleInfo() {

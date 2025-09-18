@@ -370,14 +370,6 @@ const confirmSelection = () => {
 onShow(() => {
   initDateData()
   // clearAgeInfo()
-  const user = uni.getStorageSync('token');
-  if (!user) {
-    uni.$u.toast('请先登录')
-    uni.navigateTo({
-      url: 'pages/login/login'
-    })
-    return;
-  }
   // 新增：预加载背景 GIF
   preloadBackgrounds()
   loadRecords();

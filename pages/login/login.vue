@@ -127,6 +127,7 @@
          sex: tokenData.sex,
          user_birthday: tokenData.user_birthday
        };
+       uni.setStorageSync('userInfo', this.userInfo);
      
        // 可选：跳转到个人中心
        uni.reLaunch({ url: '/pages/user/my' });

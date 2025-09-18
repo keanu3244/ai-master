@@ -119,17 +119,43 @@ const handle_confirm = ({
 
 //ai教练
 const jumppage = () => {
+   const user = uni.getStorageSync('token');
+   if (!user) {
+     uni.$u.toast('请先登录')
+     uni.navigateTo({
+       url: '/pages/login/login'
+     })
+     return;
+   }
   uni.navigateTo({
     url: '/pages/setting/train'
   })
 }
 
 const handleJump = () => {
+  const user = uni.getStorageSync('token');
+  if (!user) {
+    uni.$u.toast('请先登录')
+    uni.navigateTo({
+      url: '/pages/login/login'
+    })
+    return;
+  }
   uni.navigateTo({
     url: '/pages/user/userinfo'
   })
 }
 const handleJump2 = () => {
+  console.log('出发')
+  const user = uni.getStorageSync('token');
+  if (!user) {
+    uni.$u.toast('请先登录')
+    uni.navigateTo({
+      url: '/pages/login/login'
+    })
+    return;
+  }
+  console.log('未登录')
   uni.navigateTo({
     url: '/pages/user/my'
   })
@@ -174,7 +200,7 @@ const handleSend = () => {
   if (!user) {
     uni.$u.toast('请先登录');
     uni.navigateTo({
-      url: '/pages/user/my'
+      url: '/pages/login/login'
     });
     return;
   }
