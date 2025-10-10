@@ -1,7 +1,12 @@
 <template>
   <view class="my_wrap">
     <view class="bg_wrap" :style="{ paddingTop: statusBarPx + capsuleHeight / 2 - 7 + 'px' }">
-      <view class="title">我的</view>
+      <view class="title">
+        <image src="/static/img/arrow.png" mode="aspectFill" class="arrow" @click="handleBack"></image>
+        <view>
+          我的
+        </view>
+      </view>
       <view class="item_img">
         <image :src="userInfo.avatarUrl || '/static/img/home/avatar.png'" mode="aspectFill" class="img"></image>
       </view>
@@ -108,6 +113,9 @@ export default {
     this.fetchUserInfo();
   },
   methods: {
+    handleBack() {
+      uni.navigateBack();
+    },
     getCapsuleInfo() {
       try {
         // 仅在微信小程序环境可用
@@ -156,6 +164,7 @@ export default {
         });
 
         if (res.statusCode === 200) {
+          const tokenData = res.data;
           uni.setStorageSync('token', tokenData.access_token);
           uni.setStorageSync('username', tokenData.username);
           this.loading = true;
@@ -250,7 +259,7 @@ export default {
               sex: tokenData.sex,
               user_birthday: tokenData.user_birthday
             };
-
+            this.error = ''
             // 可选：跳转到个人中心
             // uni.reLaunch({ url: '/pages/user/my' });
           }
@@ -331,6 +340,7 @@ export default {
   height: 442rpx;
   // filter: blur(5px);
   background: linear-gradient(to bottom, #9FCAFF, #FFF);
+
 }
 
 
@@ -344,6 +354,15 @@ export default {
   font-style: normal;
   text-transform: none;
   margin-bottom: 48px;
+  position: relative;
+
+  .arrow {
+    position: absolute;
+    left: 30rpx;
+    width: 40rpx;
+    height: 40rpx;
+    transform: rotate(180deg);
+  }
 }
 
 .item_img {
