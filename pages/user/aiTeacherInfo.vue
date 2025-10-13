@@ -1,5 +1,10 @@
 <template>
   <view class="form_wrap">
+    <view class="bg_wrap_container">
+      <!-- <image class="bg" :src="currentBgImage">
+	    </image> -->
+      <image src="https://www.listentoyouai.com/images/lan.gif" mode="aspectFill" class="bg"></image>
+    </view>
     <view class="com_item">
       Hi，我是小芽教练，为了帮您解决问题，需要了解您的情况？
     </view>
@@ -30,7 +35,7 @@
       <picker mode="multiSelector" :range="aiDateRange" :value="aiDateIndex" @change="onAIDateChange"
         @columnchange="onAIColumnChange" class="picker">
         <div class="age_container" :class="confirmedAIDate ? 'active' : ''">{{ confirmedAIDate || '点击设置AI的出生日期'
-          }}
+        }}
         </div>
       </picker>
 
@@ -52,23 +57,22 @@
       </view>
     </view>
 
-    <view class="com_item">
-      <up-checkbox :customStyle="{ marginBottom: '8px' }" label="" name="agree" usedAlone
+    <view class="protocol_item">
+      <!-- <up-checkbox :customStyle="{ marginBottom: '8px' }" label="" name="agree" usedAlone
         v-model:checked="aloneChecked">
         <template #label>
-          <view>
-            <text>同意</text>
-            <text class="act" @click="jumpage">用户协议</text>
-            <text>与</text>
-            <text class="act" @click="jumpage">隐私条款</text>
+          <view class="protocol">最后需要您同意<view class="protocol_text" @click="jumpage">《用户隐私协议》</view>
           </view>
         </template>
-      </up-checkbox>
+</up-checkbox> -->
+      <view class="agree_protocol" @click="handleSubmit">
+        完成身份注册
+      </view>
     </view>
 
-    <button class="submit" type="primary" @click="handleSubmit">
+    <!-- <button class="submit" type="primary" @click="handleSubmit">
       提交资料
-    </button>
+    </button> -->
 
 
   </view>
@@ -142,8 +146,10 @@ const initDateData = () => {
 const onAIDateChange = (e) => {
   aiDateIndex.value = e.detail.value;
   // 确认选择后更新显示文字
-  confirmedAIDate.value = selectedAIDate.value;
-
+  // confirmedAIDate.value = selectedAIDate.value;
+  date.value = selectedAIDate.value
+  //selectedAIDate.value 转换成 2025-01-01 格式
+  date.value = selectedAIDate.value.replace('年', '-').replace('月', '-').replace('日', '')
   // 计算AI年龄并发送消息
   // const age = calculateAge(confirmedAIDate.value);
   // if (age > 0) {
@@ -250,7 +256,6 @@ const formatter = (type, value) => {
 };
 const timeFormat = uni.$u.timeFormat;
 const handleConfirm = (e) => {
-
   calendarShow.value = false;
   console.log(e, dateval.value, timeFormat(dateval.value, 'yyyy-mm-dd'))
   date.value = timeFormat(dateval.value, 'yyyy-mm-dd')
@@ -283,10 +288,10 @@ const handleSubmit = async () => {
     uni.$u.toast('请点击设置你的出生日期')
     return;
   }
-  if (!aloneChecked.value) {
-    uni.$u.toast('请勾选用户协议与隐私政策')
-    return;
-  }
+  // if (!aloneChecked.value) {
+  //   uni.$u.toast('请勾选用户协议与隐私政策')
+  //   return;
+  // }
   // const params = {
   // 	usernname: nickname.value,
   // 	img: avtor.value,
@@ -353,10 +358,47 @@ const handleSubmit = async () => {
 <style lang="scss" scoped>
 .form_wrap {
   padding: 20rpx;
+  position: relative;
+
+  .bg_wrap_container {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100vh;
+    /* #ifdef MP-WEIXIN */
+    z-index: -1;
+
+    /* #endif */
+    .bg {
+      width: 100%;
+      height: 100%;
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      display: flex;
+      justify-content: center;
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      bottom: 0;
+    }
+
+    .bg_wrap {
+      width: 700rpx;
+      height: 700rpx;
+      position: absolute;
+      bottom: calc(24rpx + env(safe-area-inset-bottom));
+      bottom: calc(24rpx + constant(safe-area-inset-bottom));
+      left: calc(50% - 350rpx);
+    }
+  }
 
   .sex_container {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 32rpx;
     margin-top: 16rpx;
 
@@ -403,6 +445,37 @@ const handleSubmit = async () => {
       background: linear-gradient(180deg, #FF98E5 0%, #EF50C6 100%) !important;
       color: #FFFFFF;
     }
+  }
+}
+
+.protocol_item {
+  padding-top: 40rpx;
+
+  .protocol {
+    display: flex;
+
+    .protocol_text {
+      color: #1A5DC5;
+    }
+  }
+
+  .agree_protocol {
+    width: 510rpx;
+    height: 88rpx;
+    background: linear-gradient(180deg, #36B2FF 0%, #1A58EB 100%);
+    border-radius: 44rpx 44rpx 44rpx 44rpx;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: PingFang SC, PingFang SC;
+    font-weight: normal;
+    font-size: 28rpx;
+    color: #FEFFFF;
+    line-height: 42rpx;
+    text-align: center;
+    font-style: normal;
+    text-transform: none;
+    margin: 40rpx auto 0 auto;
   }
 }
 

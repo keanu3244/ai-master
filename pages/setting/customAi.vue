@@ -13,12 +13,12 @@
           <view class="right flex" v-if="item.q">
             <view class="text_box">
               <!-- 根据消息类型显示重新选择按钮 -->
-              <view class="reset_btn" @click="resetSex" v-if="item.messageType === 'userSex'">
+              <!-- <view class="reset_btn" @click="resetSex" v-if="item.messageType === 'userSex'">
                 重新选择
               </view>
               <view class="reset_btn" @click="resetAIDate" v-if="item.messageType === 'aiAge'">
                 重新选择
-              </view>
+              </view> -->
               <view class="info">{{ item.q }}</view>
             </view>
             <!--  <view class="pic_box">
@@ -39,7 +39,7 @@
             </view>
             <!-- 正常回复 -->
             <view v-else class="left_response_container">
-              <view class="sex_container">
+              <!-- <view class="sex_container">
                 <view class="sex_box" @click="toggleSex(1)" :class="currentSex == 1 ? 'boy_active' : ''">
                   <image :src="currentSex == 1 ? boyActive : boyNormal" mode="" class="sex_icon"></image>
                   男生
@@ -64,7 +64,7 @@
                   @click="handleCharacterSelect(1)">
                   幽默风趣
                 </view>
-              </view>
+              </view> -->
             </view>
           </view>
         </view>
@@ -133,71 +133,6 @@ const ageInfo = ref()
 const confirmedDate = ref('') // 用户确认后的日期显示
 const confirmedAIDate = ref('') // AI确认后的日期显示
 const currentCharacter = ref(0)
-
-// 新增：GIF 预加载与缓存
-const lanGifUrl = 'https://www.listentoyouai.com/images/lan.gif'
-const hongGifUrl = 'https://www.listentoyouai.com/images/hong.gif'
-const gifCache = reactive({})
-const gifCacheStorageKey = 'gif_cache_map'
-
-// 初始化从本地读取缓存映射
-try {
-  const stored = uni.getStorageSync(gifCacheStorageKey)
-  if (stored && typeof stored === 'object') {
-    Object.assign(gifCache, stored)
-  }
-} catch (e) { }
-
-const persistGifCache = () => {
-  try {
-    uni.setStorage({ key: gifCacheStorageKey, data: { ...gifCache } })
-  } catch (e) { }
-}
-
-const preloadGif = (url) => {
-  return new Promise((resolve) => {
-    // 仅保留小程序/APP 端下载与持久化缓存
-    uni.downloadFile({
-      url,
-      success: (res) => {
-        if (res.statusCode === 200 && res.tempFilePath) {
-          uni.saveFile({
-            tempFilePath: res.tempFilePath,
-            success: (saveRes) => {
-              gifCache[url] = saveRes.savedFilePath || res.tempFilePath
-              persistGifCache()
-              resolve(gifCache[url])
-            },
-            fail: () => {
-              gifCache[url] = res.tempFilePath
-              persistGifCache()
-              resolve(gifCache[url])
-            }
-          })
-        } else {
-          resolve(url)
-        }
-      },
-      fail: () => resolve(url)
-    })
-  })
-}
-
-const applyCachedBg = (url) => {
-  currentBg.value = gifCache[url] || url
-}
-
-const preloadBackgrounds = async () => {
-  try {
-    await Promise.all([preloadGif(lanGifUrl), preloadGif(hongGifUrl)])
-  } catch (e) { }
-  // 保持当前语义的背景，但尝试使用缓存后的本地路径
-  if (currentBg.value.includes('hong')) {
-    applyCachedBg(hongGifUrl)
-  } else {
-    applyCachedBg(lanGifUrl)
-  }
-}
 
 // 获取当前日期
 const now = new Date();
@@ -368,6 +303,9 @@ const confirmSelection = () => {
 //     this.fetchAvatarInfo();
 //   },
 onShow(() => {
+  //初始化背景
+  currentBg.value = uni.getStorageSync('currentBg') || currentBg.value;
+  currentBgImage.value = uni.getStorageSync('currentBgImage') || currentBgImage.value;
   initDateData()
   // clearAgeInfo()
   const user = uni.getStorageSync('token');
@@ -378,8 +316,6 @@ onShow(() => {
     })
     return;
   }
-  // 新增：预加载背景 GIF
-  preloadBackgrounds()
   loadRecords();
   fetchAvatarInfo(user)
 });
@@ -396,14 +332,20 @@ const resetSex = () => {
 };
 
 const toggleBg = () => {
-  if (currentBg.value === lanGifUrl || currentBg.value.indexOf('lan.gif') !== -1) {
-    applyCachedBg(hongGifUrl);
+  //获取本地缓存的当前背景图片
+  if (currentBg.value === 'https://www.listentoyouai.com/images/lan.gif') {
+    currentBg.value = 'https://www.listentoyouai.com/images/hong.gif';
     currentBgImage.value = '/static/img/redbg.png';
   } else {
-    applyCachedBg(lanGifUrl);
+    currentBg.value = 'https://www.listentoyouai.com/images/lan.gif';
     currentBgImage.value = '/static/img/bluebg.png';
   }
   currentBtn.value = 2
+
+
+  //背景缓存到本地localStorage
+  uni.setStorageSync('currentBg', currentBg.value);
+  uni.setStorageSync('currentBgImage', currentBgImage.value);
 };
 
 const toggleSex = (sex) => {

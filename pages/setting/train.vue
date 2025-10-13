@@ -13,12 +13,12 @@
           <view class="right flex" v-if="item.q">
             <view class="text_box">
               <!-- 根据消息类型显示重新选择按钮 -->
-              <view class="reset_btn" @click="resetSex" v-if="item.messageType === 'userSex'">
+              <!-- <view class="reset_btn" @click="resetSex" v-if="item.messageType === 'userSex'">
                 重新选择
               </view>
               <view class="reset_btn" @click="resetUserDate" v-if="item.messageType === 'userAge'">
                 重新选择
-              </view>
+              </view> -->
               <view class="info">{{ item.q }}</view>
             </view>
             <!--  <view class="pic_box">
@@ -41,7 +41,7 @@
             <view v-else class="left_response_container">
               <view class="info">{{ item.a }}<view v-if="!userInfo" class="protocol">《用户隐私协议》</view>
               </view>
-              <template v-if="!userInfo">
+              <!-- <template v-if="!userInfo">
                 <view class="agree_protocol">
                   同意协议，完成身份注册
                 </view>
@@ -69,7 +69,7 @@
                     幽默风趣
                   </view>
                 </view>
-              </template>
+              </template> -->
             </view>
           </view>
         </view>
@@ -77,9 +77,9 @@
     </scroll-view>
     <view class="send_footer">
       <view class="send_btns" v-if="userInfo">
-        <view class="send_btn" @click="() => currentBtn = 0" :class="currentBtn == 0 ? 'active' : ''">
+        <view class="send_btn" @click="toggleModel" :class="currentBtn == 0 ? 'active' : ''">
           <image :src="currentBtn == 0 ? jiaolian_sel : jiaolian" mode="aspectFill" class="btn"></image>
-          教练模式
+          {{ currentMode==0?'普通模式':'教练模式' }}
         </view>
         <view class="send_btn" @click="handleCustomAI" :class="currentBtn == 1 ? 'active' : ''">
           <image :src="currentBtn == 1 ? setting_sel : tow" mode="aspectFill" class="btn"></image>
@@ -158,7 +158,7 @@ const isLoading = ref(false);
 const showBtnGroup = ref(false)
 const currentBg = ref('https://www.listentoyouai.com/images/lan.gif') // 当前背景图片
 const currentBgImage = ref('/static/img/bluebg.png') // 当前背景图片
-const currentBtn = ref(0)
+const currentBtn = ref(-1)
 const currentSex = ref(0)
 const ageInfo = ref()
 const confirmedDate = ref('') // 用户确认后的日期显示
@@ -179,12 +179,17 @@ const years = ref([]);
 const months = ref([]);
 const days = ref([]);
 
-const currentMode = ref(0)
+const currentMode = ref(0)//0普通模式1教练模式
+
+const toggleModel=()=>{
+  currentBtn.value = 0;
+  currentMode.value=currentMode.value==0?1:0
+}
 
 const handleCustomAI = () => {
   // 使用 redirectTo 防止页面栈不断累积，避免 webview 数量超限
   uni.redirectTo({
-    url: '/pages/setting/customAi'
+    url: '/pages/user/aiTeacherInfo'
   })
   // currentBtn.value = 1
   // currentMode.value = 1
@@ -337,6 +342,10 @@ const confirmSelection = () => {
 //     this.fetchAvatarInfo();
 //   },
 onShow(() => {
+  //初始化背景
+  currentBg.value = uni.getStorageSync('currentBg') || currentBg.value;
+  currentBgImage.value = uni.getStorageSync('currentBgImage') || currentBgImage.value;
+
   initDateData()
   // clearAgeInfo()
   const user = uni.getStorageSync('token');
@@ -364,6 +373,7 @@ const resetSex = () => {
 };
 
 const toggleBg = () => {
+  //获取本地缓存的当前背景图片
   if (currentBg.value === 'https://www.listentoyouai.com/images/lan.gif') {
     currentBg.value = 'https://www.listentoyouai.com/images/hong.gif';
     currentBgImage.value = '/static/img/redbg.png';
@@ -372,6 +382,11 @@ const toggleBg = () => {
     currentBgImage.value = '/static/img/bluebg.png';
   }
   currentBtn.value = 2
+
+
+  //背景缓存到本地localStorage
+  uni.setStorageSync('currentBg', currentBg.value);
+  uni.setStorageSync('currentBgImage', currentBgImage.value);
 };
 
 const toggleSex = (sex) => {
@@ -428,6 +443,56 @@ const fetchAvatarInfo = (user) => {
 
 const loadRecords = () => {
   const user = uni.getStorageSync('token');
+  
+  // 检查本地缓存
+  const cachedData = uni.getStorageSync('chatRecordsCache');
+  const cacheTimestamp = uni.getStorageSync('chatRecordsCacheTime');
+  const currentTime = Date.now();
+  const cacheExpireTime = 24 * 60 * 60 * 1000; // 24小时
+  
+  // 如果缓存存在且未过期，使用缓存数据
+  if (cachedData && cacheTimestamp && (currentTime - cacheTimestamp) < cacheExpireTime) {
+    console.log('使用缓存的聊天记录');
+    const records = JSON.parse(cachedData);
+    
+    // 清空现有数据
+    barrageList.value = [];
+    requestBody.value = [];
+    
+    // 加载缓存的聊天记录
+    records.forEach(record => {
+      if (record.chat_role === 'user') {
+        barrageList.value.push({
+          q: record.chat_content
+        });
+        requestBody.value.push({
+          role: 'user',
+          content: record.chat_content
+        })
+      } else if (record.chat_role === 'assistant') {
+        barrageList.value.push({
+          a: record.chat_content
+        });
+        requestBody.value.push({
+          role: 'assistant',
+          content: record.chat_content
+        })
+      }
+    });
+    
+    barrageList.value.unshift({
+      a: '今天聊点什么对你来说是最有价值的?'
+    });
+    
+    // 数据加载完成后，滚动到底部
+    nextTick(() => {
+      scrollToBottom();
+    });
+    return;
+  }
+  
+  // 缓存不存在或已过期，从服务器获取
+  console.log('从服务器获取聊天记录');
   uni.request({
     url: 'https://www.listentoyouai.com:80/query_data/mentor_api',
     //url: 'http://127.0.0.1:5001/query_data/mentor_api',
@@ -440,41 +505,50 @@ const loadRecords = () => {
       if (res.statusCode === 200) {
         const records = res.data;
         console.log(records)
+        
+        // 缓存到本地，保存24小时
+        uni.setStorageSync('chatRecordsCache', JSON.stringify(records));
+        uni.setStorageSync('chatRecordsCacheTime', Date.now());
+        
+        // 清空现有数据
+        barrageList.value = [];
+        requestBody.value = [];
+        
         records.forEach(record => {
-          const new_record = JSON.parse(record.chat_data)
+          // const new_record = JSON.parse(record.chat_data)
           //const new_record1 = record.chat_data;
           //const matches = record.chat_data.match(/\{.*?\}/g);
           //const new_record = new_record1.split('},{')
           //console.log(matches)
-          if (new_record.role === 'user') {
+          console.log('record',record)
+          if (record.chat_role === 'user') {
             //console.log(new_record.content)
             barrageList.value.push({
-              q: new_record.content
+              q: record.chat_content
             });
             requestBody.value.push({
               role: 'user',
-              content: new_record.content
+              content: record.chat_content
             })
-          } else if (new_record.role === 'assistant') {
+          } else if (record.chat_role === 'assistant') {
             //console.log(new_record.content)
             // if (barrageList.value.length > 0 && barrageList.value[barrageList.value
             // 		.length - 1].a === '') {
             // 	barrageList.value[barrageList.value.length - 1].a = new_record.content;
             barrageList.value.push({
-              a: new_record.content
+              a: record.chat_content
             });
             requestBody.value.push({
               role: 'assistant',
-              content: new_record.content
+              content: record.chat_content
             })
           };
           //console.log(barrageList.value)
         });
-        if (records.chat_data.length === 0) {
-          barrageList.value.push({
-            a: 'hello,我是您的Al教练，有什么事情都可以找我倾诉啊，期望可以帮到你。'
+        console.log('barrageList',barrageList)
+          barrageList.value.unshift({
+            a: '今天聊点什么对你来说是最有价值的?'
           });
-        }
         // 数据加载完成后，滚动到底部
         nextTick(() => {
           scrollToBottom();
@@ -495,6 +569,24 @@ const loadRecords = () => {
 
 const loadMoreRecords = () => {
   loadRecords();
+};
+
+// 更新聊天记录缓存
+const updateChatCache = () => {
+  try {
+    // 将 requestBody 转换为与服务器返回格式一致的数据结构
+    const cacheData = requestBody.value.map(item => ({
+      chat_role: item.role,
+      chat_content: item.content
+    }));
+    
+    // 更新缓存数据和时间戳
+    uni.setStorageSync('chatRecordsCache', JSON.stringify(cacheData));
+    uni.setStorageSync('chatRecordsCacheTime', Date.now());
+    console.log('聊天记录缓存已更新');
+  } catch (error) {
+    console.error('更新缓存失败:', error);
+  }
 };
 
 const generateAnswer = (str) => {
@@ -536,6 +628,7 @@ const handleSennd = async () => {
     role: 'user',
     content: send_val.value
   })
+  const copySendValue=send_val.value
   send_val.value = ''
   //const test1 = JSON.parse(requestBody)
   let requestBodyString = JSON.stringify(requestBody.value);
@@ -548,6 +641,7 @@ const handleSennd = async () => {
     url: 'https://www.listentoyouai.com:80/chat/freedom_api',
     method: 'POST',
     data: {
+      user_chat:copySendValue,
       prompts: requestBodyString_new,
       memory_prompts: memory_prompts,
       system_prompts: systemPrompts
@@ -566,19 +660,30 @@ const handleSennd = async () => {
           content: res.data
         });
 
+        // 更新本地缓存
+        updateChatCache();
+
         // 数据加载完成后，滚动到底部
         nextTick(() => {
           scrollToBottom();
         });
 
       } else {
-        reject(new Error(`请求失败，状态码: ${res.statusCode}`));
-        //barrageList.value[num.value].isLoading = false;
+        console.error(`请求失败，状态码: ${res.statusCode}`);
+        uni.$u.toast('请求失败，请稍后重试');
+        // 移除思考中的状态
+        if (barrageList.value[num.value]) {
+          barrageList.value[num.value].a = '抱歉，我暂时无法回复，请稍后再试';
+        }
       }
     },
     fail: (err) => {
-      reject(err);
-      //barrageList.value[num.value].isLoading = false;
+      console.error('请求失败:', err);
+      uni.$u.toast('网络错误，请检查网络连接');
+      // 移除思考中的状态
+      if (barrageList.value[num.value]) {
+        barrageList.value[num.value].a = '网络连接失败，请检查网络后重试';
+      }
     }
   });
 }
