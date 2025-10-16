@@ -79,7 +79,7 @@
       <view class="send_btns" v-if="userInfo">
         <view class="send_btn" @click="toggleModel" :class="currentBtn == 0 ? 'active' : ''">
           <image :src="currentBtn == 0 ? jiaolian_sel : jiaolian" mode="aspectFill" class="btn"></image>
-          {{ currentMode==0?'普通模式':'教练模式' }}
+          {{ currentMode == 0 ? '普通模式' : '教练模式' }}
         </view>
         <view class="send_btn" @click="handleCustomAI" :class="currentBtn == 1 ? 'active' : ''">
           <image :src="currentBtn == 1 ? setting_sel : tow" mode="aspectFill" class="btn"></image>
@@ -125,6 +125,11 @@
         </view>
       </view> -->
     </view>
+    <view class="music-player-wrapper">
+      <MusicPlayer ref="musicPlayerRef" :music-list="currentMusicList" @play="handleMusicPlay" />
+    </view>
+    <button v-if="showMusicOverlay" class="music-overlay-btn" type="default" hover-class="none"
+      @click="handleOverlayPlay"></button>
 
   </view>
 </template>
@@ -146,7 +151,8 @@ import jiaolian_sel from '@/static/img/jiaolian_sel.png'
 import jiaolian from '@/static/img/jiaolian.png'
 import setting_sel from '@/static/img/setting_sel.png'
 import tow from '@/static/img/tow.png'
-import { onShow } from '@dcloudio/uni-app'
+import { onShow, onHide, onUnload } from '@dcloudio/uni-app'
+import MusicPlayer from '@/components/MusicPlayer/MusicPlayer.vue'
 
 const barrageList = ref([]) // 存储所有聊天消息
 const send_val = ref('')	// 用户输入内容
@@ -164,6 +170,54 @@ const ageInfo = ref()
 const confirmedDate = ref('') // 用户确认后的日期显示
 const currentCharacter = ref(0)
 const userInfo = ref(null)
+const musicPlayerRef = ref(null)
+const showMusicOverlay = ref(true)
+const lanMusicTracks = Array.from({ length: 6 }, (_, index) => `https://www.listentoyouai.com/music/lan/${index + 1}.mp3`)
+const hongMusicTracks = Array.from({ length: 4 }, (_, index) => `https://www.listentoyouai.com/music/hong/${index + 1}.mp3`)
+const currentMusicList = ref(lanMusicTracks.slice())
+
+const applyMusicSeriesByBg = (bgValue, shouldAutoplay = false) => {
+  const useHongSeries = typeof bgValue === 'string' && bgValue.includes('hong')
+  currentMusicList.value = (useHongSeries ? hongMusicTracks : lanMusicTracks).slice()
+
+  if (!shouldAutoplay || !musicPlayerRef.value) {
+    return
+  }
+
+  if (typeof musicPlayerRef.value.setCurrentIndex === 'function') {
+    musicPlayerRef.value.setCurrentIndex(0)
+  }
+
+  if (typeof musicPlayerRef.value.playMusic === 'function') {
+    musicPlayerRef.value.playMusic()
+  }
+}
+
+const handleOverlayPlay = () => {
+  if (!musicPlayerRef.value) {
+    return
+  }
+
+  if (typeof musicPlayerRef.value.setCurrentIndex === 'function') {
+    musicPlayerRef.value.setCurrentIndex(0)
+  }
+
+  if (typeof musicPlayerRef.value.playMusic === 'function') {
+    musicPlayerRef.value.playMusic()
+    showMusicOverlay.value = false
+  }
+}
+
+const handleMusicPlay = () => {
+  showMusicOverlay.value = false
+}
+
+const stopTrainMusic = () => {
+  if (musicPlayerRef.value && typeof musicPlayerRef.value.stopMusic === 'function') {
+    musicPlayerRef.value.stopMusic()
+  }
+  showMusicOverlay.value = true
+}
 
 // 获取当前日期
 const now = new Date();
@@ -181,9 +235,9 @@ const days = ref([]);
 
 const currentMode = ref(0)//0普通模式1教练模式
 
-const toggleModel=()=>{
+const toggleModel = () => {
   currentBtn.value = 0;
-  currentMode.value=currentMode.value==0?1:0
+  currentMode.value = currentMode.value == 0 ? 1 : 0
 }
 
 const handleCustomAI = () => {
@@ -345,6 +399,7 @@ onShow(() => {
   //初始化背景
   currentBg.value = uni.getStorageSync('currentBg') || currentBg.value;
   currentBgImage.value = uni.getStorageSync('currentBgImage') || currentBgImage.value;
+  applyMusicSeriesByBg(currentBg.value, !showMusicOverlay.value);
 
   initDateData()
   // clearAgeInfo()
@@ -360,6 +415,9 @@ onShow(() => {
   loadRecords();
   fetchAvatarInfo(user)
 });
+
+onHide(stopTrainMusic)
+onUnload(stopTrainMusic)
 
 const resetSex = () => {
   currentSex.value = 0;
@@ -382,6 +440,8 @@ const toggleBg = () => {
     currentBgImage.value = '/static/img/bluebg.png';
   }
   currentBtn.value = 2
+
+  applyMusicSeriesByBg(currentBg.value, !showMusicOverlay.value);
 
 
   //背景缓存到本地localStorage
@@ -443,22 +503,22 @@ const fetchAvatarInfo = (user) => {
 
 const loadRecords = () => {
   const user = uni.getStorageSync('token');
-  
+
   // 检查本地缓存
   const cachedData = uni.getStorageSync('chatRecordsCache');
   const cacheTimestamp = uni.getStorageSync('chatRecordsCacheTime');
   const currentTime = Date.now();
   const cacheExpireTime = 24 * 60 * 60 * 1000; // 24小时
-  
+
   // 如果缓存存在且未过期，使用缓存数据
   if (cachedData && cacheTimestamp && (currentTime - cacheTimestamp) < cacheExpireTime) {
     console.log('使用缓存的聊天记录');
     const records = JSON.parse(cachedData);
-    
+
     // 清空现有数据
     barrageList.value = [];
     requestBody.value = [];
-    
+
     // 加载缓存的聊天记录
     records.forEach(record => {
       if (record.chat_role === 'user') {
@@ -479,18 +539,18 @@ const loadRecords = () => {
         })
       }
     });
-    
+
     barrageList.value.unshift({
       a: '今天聊点什么对你来说是最有价值的?'
     });
-    
+
     // 数据加载完成后，滚动到底部
     nextTick(() => {
       scrollToBottom();
     });
     return;
   }
-  
+
   // 缓存不存在或已过期，从服务器获取
   console.log('从服务器获取聊天记录');
   uni.request({
@@ -505,22 +565,22 @@ const loadRecords = () => {
       if (res.statusCode === 200) {
         const records = res.data;
         console.log(records)
-        
+
         // 缓存到本地，保存24小时
         uni.setStorageSync('chatRecordsCache', JSON.stringify(records));
         uni.setStorageSync('chatRecordsCacheTime', Date.now());
-        
+
         // 清空现有数据
         barrageList.value = [];
         requestBody.value = [];
-        
+
         records.forEach(record => {
           // const new_record = JSON.parse(record.chat_data)
           //const new_record1 = record.chat_data;
           //const matches = record.chat_data.match(/\{.*?\}/g);
           //const new_record = new_record1.split('},{')
           //console.log(matches)
-          console.log('record',record)
+          console.log('record', record)
           if (record.chat_role === 'user') {
             //console.log(new_record.content)
             barrageList.value.push({
@@ -545,10 +605,10 @@ const loadRecords = () => {
           };
           //console.log(barrageList.value)
         });
-        console.log('barrageList',barrageList)
-          barrageList.value.unshift({
-            a: '今天聊点什么对你来说是最有价值的?'
-          });
+        console.log('barrageList', barrageList)
+        barrageList.value.unshift({
+          a: '今天聊点什么对你来说是最有价值的?'
+        });
         // 数据加载完成后，滚动到底部
         nextTick(() => {
           scrollToBottom();
@@ -579,7 +639,7 @@ const updateChatCache = () => {
       chat_role: item.role,
       chat_content: item.content
     }));
-    
+
     // 更新缓存数据和时间戳
     uni.setStorageSync('chatRecordsCache', JSON.stringify(cacheData));
     uni.setStorageSync('chatRecordsCacheTime', Date.now());
@@ -628,7 +688,7 @@ const handleSennd = async () => {
     role: 'user',
     content: send_val.value
   })
-  const copySendValue=send_val.value
+  const copySendValue = send_val.value
   send_val.value = ''
   //const test1 = JSON.parse(requestBody)
   let requestBodyString = JSON.stringify(requestBody.value);
@@ -638,10 +698,10 @@ const handleSennd = async () => {
   console.log(requestBodyString_new);
   //isLoading.value = true;
   uni.request({
-    url: 'https://www.listentoyouai.com:80/chat/freedom_api',
+    url: currentMode.value == 0 ? 'https://www.listentoyouai.com:80/chat/freedom_api' : 'https://www.listentoyouai.com:80/chat/mentor_api',
     method: 'POST',
     data: {
-      user_chat:copySendValue,
+      user_chat: copySendValue,
       prompts: requestBodyString_new,
       memory_prompts: memory_prompts,
       system_prompts: systemPrompts
@@ -771,6 +831,33 @@ page {
     }
   }
 
+  .music-player-wrapper {
+    position: fixed;
+    top: 150rpx;
+    top: calc(constant(safe-area-inset-top) + 50rpx);
+    top: calc(env(safe-area-inset-top) + 50rpx);
+    right: 40rpx;
+    z-index: 300;
+  }
+
+  .music-overlay-btn {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
+    z-index: 999;
+    outline: none;
+    touch-action: manipulation;
+  }
+
+  .music-overlay-btn::after {
+    display: none;
+  }
 
   .send_content {
     overflow-y: auto;

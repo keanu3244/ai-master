@@ -66,7 +66,7 @@
         </template>
 </up-checkbox> -->
       <view class="agree_protocol" @click="handleSubmit">
-        完成身份注册
+        保存
       </view>
     </view>
 
@@ -146,7 +146,7 @@ const initDateData = () => {
 const onAIDateChange = (e) => {
   aiDateIndex.value = e.detail.value;
   // 确认选择后更新显示文字
-  // confirmedAIDate.value = selectedAIDate.value;
+  confirmedAIDate.value = selectedAIDate.value;
   date.value = selectedAIDate.value
   //selectedAIDate.value 转换成 2025-01-01 格式
   date.value = selectedAIDate.value.replace('年', '-').replace('月', '-').replace('日', '')
@@ -331,22 +331,22 @@ const handleSubmit = async () => {
 
     if (callbackRes.statusCode === 200) {
       const tokenData = callbackRes.data;
-      uni.setStorageSync('token', tokenData.access_token);
-      uni.$u.toast('注册成功');
+      uni.setStorageSync('ai_token', tokenData.access_token);
+      uni.$u.toast('保存成功');
       // 页面跳转
       uni.navigateTo({
         url: '/pages/setting/train'
       })
     }
     else if (callbackRes.statusCode === 201) {
-      uni.$u.toast('ai信息已注册,请勿重复提交');
+      uni.$u.toast('ai信息已保存,请勿重复提交');
       // 页面跳转
       uni.navigateTo({
         url: '/pages/setting/train'
       })
     }
     else {
-      uni.$u.toast('注册失败，请重试');
+      uni.$u.toast('保存失败，请重试');
     }
   } catch (error) {
     console.error('请求异常:', error);

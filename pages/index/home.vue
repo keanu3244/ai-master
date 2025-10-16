@@ -52,6 +52,11 @@
         <image src="/static/img/scence/send1.png" class="send_img" @click="handleSend"></image>
       </view>
     </view>
+    <view class="music-player-wrapper">
+      <MusicPlayer ref="musicPlayerRef" :music-list="tuMusicList" @play="handleMusicPlay" />
+    </view>
+    <button v-if="showMusicOverlay" class="music-overlay-btn" type="default" hover-class="none"
+      @click="handleOverlayPlay"></button>
   </view>
   <comp-picker :show="scenshow" :columns="scencolumns" @cancel="scenshow = false" @confirm="handle_confirm"
     keyName="label" :defaultIndex="[scenindex]"></comp-picker>
@@ -59,15 +64,16 @@
 <script setup>
 import {
   ref,
-  reactive,
   onMounted
 } from 'vue';
+import { onHide, onUnload } from '@dcloudio/uni-app'
 import {
   request
 } from '@/utils/request.js'
 //const socket = io.connect('http://127.0.0.1:5000');
 import io from '@hyoga/uni-socket.io';
 import redbg from '@/static/img/redbg.png'
+import MusicPlayer from '@/components/MusicPlayer/MusicPlayer.vue'
 const socket = io('wss://www.listentoyouai.com:80', {
   query: {},
   transports: ['websocket', 'polling'],
@@ -144,6 +150,37 @@ const handleJump3 = () => {
 const handledq = () => {
   uni.$u.toast('内测中')
 }
+
+const musicPlayerRef = ref(null)
+const showMusicOverlay = ref(true)
+const tuMusicList = ref(Array.from({ length: 5 }, (_, index) => `https://www.listentoyouai.com/music/tu/${index + 1}.mp3`))
+
+const handleOverlayPlay = () => {
+  if (!musicPlayerRef.value) {
+    return
+  }
+  if (typeof musicPlayerRef.value.setCurrentIndex === 'function') {
+    musicPlayerRef.value.setCurrentIndex(0)
+  }
+  if (typeof musicPlayerRef.value.playMusic === 'function') {
+    musicPlayerRef.value.playMusic()
+    showMusicOverlay.value = false
+  }
+}
+
+const handleMusicPlay = () => {
+  showMusicOverlay.value = false
+}
+
+const teardownMusic = () => {
+  if (musicPlayerRef.value && typeof musicPlayerRef.value.stopMusic === 'function') {
+    musicPlayerRef.value.stopMusic()
+  }
+  showMusicOverlay.value = true
+}
+
+onHide(teardownMusic)
+onUnload(teardownMusic)
 
 // 发送弹幕
 const barrageList = ref([])
@@ -266,6 +303,34 @@ const handleSend = () => {
     }
   }
 
+  .music-player-wrapper {
+    position: fixed;
+    top: 150rpx;
+    top: calc(constant(safe-area-inset-top) + 220rpx);
+    top: calc(env(safe-area-inset-top) + 220rpx);
+    right: 40rpx;
+    z-index: 300;
+  }
+
+  .music-overlay-btn {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
+    z-index: 999;
+    outline: none;
+    touch-action: manipulation;
+  }
+
+  .music-overlay-btn::after {
+    display: none;
+  }
+
   /* 自定义动画，文字从右到左 */
   @keyframes moveFromRightToLeft {
     0% {
@@ -323,7 +388,7 @@ const handleSend = () => {
     box-sizing: border-box;
     width: 100%;
     padding: 0 24rpx 24rpx 24rpx;
-    z-index: 10000;
+    z-index: 998;
 
     .operate_wrap {
       .operate_item {
