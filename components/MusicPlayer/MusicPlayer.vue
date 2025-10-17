@@ -1,11 +1,6 @@
 <template>
   <view class="music-player">
-    <image 
-      :src="currentIcon" 
-      class="music-icon" 
-      @click="handlePlayPause"
-      mode="aspectFit"
-    />
+    <image :src="currentIcon" class="music-icon" @click="handlePlayPause" mode="aspectFit" />
   </view>
 </template>
 
@@ -40,7 +35,8 @@ export default {
   computed: {
     // 当前显示的图标
     currentIcon() {
-      return this.playState === 2 ? this.stopIcon : this.playIcon
+      console.log('this.playState', this.playState)
+      return this.playState === 2 || this.playState === 0 ? this.stopIcon : this.playIcon
     },
     // 当前播放的音乐
     currentMusic() {
@@ -63,16 +59,16 @@ export default {
         this.setupAudioEvents()
       }
     },
-    
+
     // 设置音频事件监听
     setupAudioEvents() {
       if (!this.audioContext) return
-      
+
       // 音频播放结束事件
       this.audioContext.onEnded(() => {
         this.playNext()
       })
-      
+
       // 音频播放错误事件
       this.audioContext.onError((error) => {
         console.error('音频播放错误:', error)
@@ -82,13 +78,13 @@ export default {
           icon: 'none'
         })
       })
-      
+
       // 音频可以播放事件
       this.audioContext.onCanplay(() => {
         console.log('音频可以播放')
       })
     },
-    
+
     // 处理播放/暂停点击
     handlePlayPause() {
       if (this.musicList.length === 0) {
@@ -98,7 +94,7 @@ export default {
         })
         return
       }
-      
+
       if (this.playState === 0) {
         // 未播放状态，开始播放
         this.playMusic()
@@ -110,17 +106,17 @@ export default {
         this.playNext()
       }
     },
-    
+
     // 播放音乐
     playMusic() {
       if (!this.currentMusic || !this.audioContext) return
-      
+
       try {
         this.audioContext.src = this.currentMusic
         this.audioContext.loop = true
         this.audioContext.play()
         this.playState = 1
-        
+
         // 触发播放事件
         this.$emit('play', {
           index: this.currentIndex,
@@ -134,15 +130,15 @@ export default {
         })
       }
     },
-    
+
     // 暂停音乐
     pauseMusic() {
       if (!this.audioContext) return
-      
+
       try {
         this.audioContext.pause()
         this.playState = 2
-        
+
         // 触发暂停事件
         this.$emit('pause', {
           index: this.currentIndex,
@@ -152,52 +148,52 @@ export default {
         console.error('暂停音乐失败:', error)
       }
     },
-    
+
     // 播放下一首
     playNext() {
       if (this.musicList.length === 0) return
-      
+
       // 切换到下一首，若已到末尾则回到第一首
       const nextIndex = this.currentIndex + 1
       this.currentIndex = nextIndex >= this.musicList.length ? 0 : nextIndex
-      
+
       // 播放新音乐
       this.playMusic()
-      
+
       // 触发切换事件
       this.$emit('next', {
         index: this.currentIndex,
         music: this.currentMusic
       })
     },
-    
+
     // 播放上一首
     playPrevious() {
       if (this.musicList.length === 0) return
-      
+
       // 切换到上一首
-      this.currentIndex = this.currentIndex === 0 
-        ? this.musicList.length - 1 
+      this.currentIndex = this.currentIndex === 0
+        ? this.musicList.length - 1
         : this.currentIndex - 1
-      
+
       // 播放新音乐
       this.playMusic()
-      
+
       // 触发切换事件
       this.$emit('previous', {
         index: this.currentIndex,
         music: this.currentMusic
       })
     },
-    
+
     // 停止播放
     stopMusic() {
       if (!this.audioContext) return
-      
+
       try {
         this.audioContext.stop()
         this.playState = 0
-        
+
         // 触发停止事件
         this.$emit('stop', {
           index: this.currentIndex,
@@ -207,7 +203,7 @@ export default {
         console.error('停止音乐失败:', error)
       }
     },
-    
+
     // 销毁音频上下文
     destroyAudio() {
       if (this.audioContext) {
@@ -215,7 +211,7 @@ export default {
         this.audioContext = null
       }
     },
-    
+
     // 设置当前播放的音乐索引
     setCurrentIndex(index) {
       if (this.musicList.length === 0) return
@@ -226,7 +222,7 @@ export default {
         music: this.currentMusic
       })
     },
-    
+
     // 获取当前播放状态
     getPlayState() {
       return {
@@ -236,7 +232,7 @@ export default {
       }
     }
   },
-  
+
   // 监听音乐列表变化
   watch: {
     musicList: {

@@ -55,8 +55,8 @@
     <view class="music-player-wrapper">
       <MusicPlayer ref="musicPlayerRef" :music-list="tuMusicList" @play="handleMusicPlay" />
     </view>
-    <button v-if="showMusicOverlay" class="music-overlay-btn" type="default" hover-class="none"
-      @click="handleOverlayPlay"></button>
+    <!-- <button v-if="showMusicOverlay" class="music-overlay-btn" type="default" hover-class="none"
+      @click="handleOverlayPlay"></button> -->
   </view>
   <comp-picker :show="scenshow" :columns="scencolumns" @cancel="scenshow = false" @confirm="handle_confirm"
     keyName="label" :defaultIndex="[scenindex]"></comp-picker>

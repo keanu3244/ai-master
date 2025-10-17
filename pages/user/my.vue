@@ -72,7 +72,8 @@ export default {
       // 编辑相关
       editingName: false,
       tempNickName: '',
-      genderOptions: ['男', '女']
+      genderOptions: ['男', '女'],
+      hasShownOnce: false
     };
   },
   computed: {
@@ -112,6 +113,13 @@ export default {
     this.getCapsuleInfo();
     this.fetchUserInfo();
   },
+  onShow() {
+    if (this.hasShownOnce) {
+      this.fetchUserInfo();
+      return;
+    }
+    this.hasShownOnce = true;
+  },
   methods: {
     handleBack() {
       uni.navigateBack();
@@ -144,18 +152,28 @@ export default {
         return 0;
       }
     },
-    async fetchUserInfo() {
-      const token = uni.getStorageSync('token');
+    async fetchUserInfo(isRetry = false) {
+      let token = uni.getStorageSync('token');
+      this.error = null;
+
       if (!token) {
+        if (!isRetry) {
+          const reloginSuccess = await this.login({ silent: true });
+          if (reloginSuccess) {
+            return this.fetchUserInfo(true);
+          }
+        }
         this.isLoggedIn = false;
         this.error = '未登录，请先登录';
+        this.loading = false;
         return;
-      };
+      }
+
+      this.loading = true;
 
       try {
         const res = await uni.request({
           url: 'https://www.listentoyouai.com:80/query_data/get_user_info',
-          //url: 'http://127.0.0.1:5001/query_data/get_user_info',
           method: 'POST',
           header: {
             'Content-Type': 'application/json',
@@ -164,18 +182,29 @@ export default {
         });
 
         if (res.statusCode === 200) {
-          const tokenData = res.data;
-          uni.setStorageSync('token', tokenData.access_token);
-          uni.setStorageSync('username', tokenData.username);
-          this.loading = true;
+          const tokenData = res.data || {};
+          if (tokenData.access_token) {
+            uni.setStorageSync('token', tokenData.access_token);
+          }
+          if (tokenData.username) {
+            uni.setStorageSync('username', tokenData.username);
+          }
           this.isLoggedIn = true;
-          const resData = res.data;
           this.userInfo = {
-            nickName: resData.username || '未命名',
-            avatarUrl: resData.headimg || '/static/img/home/avatar.png',
-            sex: resData.sex,
-            user_birthday: resData.user_birthday
+            nickName: tokenData.username || '未命名',
+            avatarUrl: tokenData.headimg || '/static/img/home/avatar.png',
+            sex: tokenData.sex,
+            user_birthday: tokenData.user_birthday
           };
+        }
+        else if (res.statusCode === 401 && !isRetry) {
+          const reloginSuccess = await this.login({ silent: true });
+          if (reloginSuccess) {
+            return this.fetchUserInfo(true);
+          }
+          this.isLoggedIn = false;
+          uni.removeStorageSync('token');
+          this.error = '自动登录失败，请重新登录';
         }
         else if (res.statusCode === 403) {
           uni.$u.toast('用户不存在，请注册')
@@ -227,9 +256,12 @@ export default {
     },
 
 
-    async login() {
+    async login(options = {}) {
+      const { silent = false } = options;
       try {
-        this.error = null;
+        if (!silent) {
+          this.error = null;
+        }
         let res = await uni.login({
           provider: 'weixin'
         });
@@ -259,26 +291,40 @@ export default {
               sex: tokenData.sex,
               user_birthday: tokenData.user_birthday
             };
-            this.error = ''
+            if (!silent) {
+              this.error = '';
+            }
             // 可选：跳转到个人中心
             // uni.reLaunch({ url: '/pages/user/my' });
+            return true;
           }
           else if (callbackRes.statusCode === 403) {
             uni.$u.toast('用户不存在，请注册')
             uni.navigateTo({
               url: '/pages/user/userinfo'
             })
+            return false;
           }
           else {
-            this.error = '登录失败，请重试';
+            if (!silent) {
+              this.error = '登录失败，请重试';
+            }
+            return false;
           }
         } else {
-          this.error = '获取微信登录凭证失败';
+          if (!silent) {
+            this.error = '获取微信登录凭证失败';
+          }
+          return false;
         }
       } catch (err) {
         console.error('请求失败:', err);
-        this.error = '网络异常，请检查网络连接';
+        if (!silent) {
+          this.error = '网络异常，请检查网络连接';
+        }
+        return false;
       }
+      return false;
     },
 
     async logout() {

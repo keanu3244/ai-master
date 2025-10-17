@@ -126,9 +126,11 @@ const aiDays = ref([]);
 
 onShow(() => {
   initDateData()
+  fetchAIInfo()
 })
 // 初始化日期数据
 const initDateData = () => {
+  clearAgeInfo()
   // 生成年份数据（1950-当前年份）
   for (let i = 1950; i <= currentYear; i++) {
     aiYears.value.push(i + '年');
@@ -275,6 +277,108 @@ const handleCharacter = (character) => {
   characterType.value = character
 }
 
+const resetAIDateDisplay = () => {
+  confirmedAIDate.value = ''
+  date.value = '点击设置你的出生日期'
+}
+
+const applyISODateToPicker = (isoDate) => {
+  if (!isoDate || typeof isoDate !== 'string') {
+    resetAIDateDisplay()
+    return
+  }
+
+  const parts = isoDate.split('-')
+  if (parts.length !== 3) {
+    resetAIDateDisplay()
+    return
+  }
+
+  const yearNum = Number(parts[0])
+  const monthNum = Number(parts[1])
+  const dayNum = Number(parts[2])
+
+  if ([yearNum, monthNum, dayNum].some(num => Number.isNaN(num) || num <= 0)) {
+    resetAIDateDisplay()
+    return
+  }
+
+  const yearIndex = Math.min(Math.max(yearNum - 1950, 0), aiYears.value.length - 1)
+  const monthIndex = Math.min(Math.max(monthNum - 1, 0), aiMonths.value.length - 1)
+
+  aiDateIndex.value = [yearIndex, monthIndex, aiDateIndex.value[2]]
+  updateAIDays()
+
+  const maxDayIndex = aiDays.value.length - 1
+  const dayIndex = Math.min(Math.max(dayNum - 1, 0), maxDayIndex)
+  aiDateIndex.value = [yearIndex, monthIndex, dayIndex]
+
+  confirmedAIDate.value = `${yearNum}年${monthNum}月${dayNum}日`
+  date.value = isoDate
+}
+
+const populateAIForm = (info) => {
+  if (!info || typeof info !== 'object') {
+    return
+  }
+
+  if (info.sex_ai !== undefined && info.sex_ai !== null) {
+    const sexValue = Number(info.sex_ai)
+    if (!Number.isNaN(sexValue)) {
+      sexnum.value = sexValue
+    }
+  }
+
+  if (info.character_ai !== undefined && info.character_ai !== null) {
+    const characterValue = Number(info.character_ai)
+    if (!Number.isNaN(characterValue)) {
+      characterType.value = characterValue
+    }
+  }
+
+  if (info.age_ai) {
+    applyISODateToPicker(info.age_ai)
+  } else {
+    resetAIDateDisplay()
+  }
+}
+
+const fetchAIInfo = async () => {
+  const userToken = uni.getStorageSync('token')
+  const aiToken = uni.getStorageSync('ai_token')
+  const authToken = aiToken || userToken
+
+  if (!authToken) {
+    return
+  }
+
+  try {
+    const res = await uni.request({
+      url: 'https://www.listentoyouai.com:80/query_data/get_ai_info_api',
+      method: 'POST',
+      header: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      }
+    })
+
+    if (res.statusCode === 200) {
+      populateAIForm(res.data)
+    } else if (res.statusCode === 404) {
+      // 没有配置AI信息，重置表单显示
+      sexnum.value = -1
+      characterType.value = -1
+      resetAIDateDisplay()
+    } else if (res.statusCode === 401) {
+      console.warn('获取AI信息授权失败')
+    } else {
+      console.warn('获取AI信息失败', res.statusCode)
+    }
+  } catch (error) {
+    console.error('获取AI信息异常:', error)
+  }
+}
+
 const handleSubmit = async () => {
   if (sexnum.value === -1) {
     uni.$u.toast('请点击设置AI的性别信息')
@@ -332,6 +436,7 @@ const handleSubmit = async () => {
     if (callbackRes.statusCode === 200) {
       const tokenData = callbackRes.data;
       uni.setStorageSync('ai_token', tokenData.access_token);
+      await fetchAIInfo();
       uni.$u.toast('保存成功');
       // 页面跳转
       uni.navigateTo({
@@ -339,6 +444,7 @@ const handleSubmit = async () => {
       })
     }
     else if (callbackRes.statusCode === 201) {
+      await fetchAIInfo();
       uni.$u.toast('ai信息已保存,请勿重复提交');
       // 页面跳转
       uni.navigateTo({

@@ -77,16 +77,16 @@
     </scroll-view>
     <view class="send_footer">
       <view class="send_btns" v-if="userInfo">
-        <view class="send_btn" @click="toggleModel" :class="currentBtn == 0 ? 'active' : ''">
-          <image :src="currentBtn == 0 ? jiaolian_sel : jiaolian" mode="aspectFill" class="btn"></image>
+        <view class="send_btn" @click="toggleModel" :class="activeTabs[0] ? 'active' : ''">
+          <image :src="activeTabs[0] ? jiaolian_sel : jiaolian" mode="aspectFill" class="btn"></image>
           {{ currentMode == 0 ? '普通模式' : '教练模式' }}
         </view>
-        <view class="send_btn" @click="handleCustomAI" :class="currentBtn == 1 ? 'active' : ''">
-          <image :src="currentBtn == 1 ? setting_sel : tow" mode="aspectFill" class="btn"></image>
+        <view class="send_btn" @click="handleCustomAI" :class="activeTabs[1] ? 'active' : ''">
+          <image :src="activeTabs[1] ? setting_sel : tow" mode="aspectFill" class="btn"></image>
           定制AI
         </view>
-        <view class="send_btn" :class="currentBtn == 2 ? 'active' : ''" @click="toggleBg">
-          <image :src="currentBtn == 2 ? qiehuan_sel : qiehuan" mode="aspectFill" class="btn"></image>
+        <view class="send_btn" :class="activeTabs[2] ? 'active' : ''" @click="toggleBg">
+          <image :src="activeTabs[2] ? qiehuan_sel : qiehuan" mode="aspectFill" class="btn"></image>
           切换背景
         </view>
       </view>
@@ -126,11 +126,14 @@
       </view> -->
     </view>
     <view class="music-player-wrapper">
-      <MusicPlayer ref="musicPlayerRef" :music-list="currentMusicList" @play="handleMusicPlay" />
+      <MusicPlayer
+        ref="musicPlayerRef"
+        :music-list="currentMusicList"
+        @play="handleMusicPlay"
+        @pause="handleMusicPause"
+        @stop="handleMusicStop"
+      />
     </view>
-    <button v-if="showMusicOverlay" class="music-overlay-btn" type="default" hover-class="none"
-      @click="handleOverlayPlay"></button>
-
   </view>
 </template>
 
@@ -138,8 +141,7 @@
 import {
   ref,
   nextTick,
-  computed,
-  onMounted
+  computed
 } from 'vue';
 import girlActive from '@/static/img/girl_active.png'
 import boyActive from '@/static/img/boy_active.png'
@@ -164,59 +166,55 @@ const isLoading = ref(false);
 const showBtnGroup = ref(false)
 const currentBg = ref('https://www.listentoyouai.com/images/lan.gif') // 当前背景图片
 const currentBgImage = ref('/static/img/bluebg.png') // 当前背景图片
-const currentBtn = ref(-1)
+const activeTabs = ref([false, false, false])
 const currentSex = ref(0)
 const ageInfo = ref()
 const confirmedDate = ref('') // 用户确认后的日期显示
 const currentCharacter = ref(0)
 const userInfo = ref(null)
 const musicPlayerRef = ref(null)
-const showMusicOverlay = ref(true)
+const isMusicPlaying = ref(false)
 const lanMusicTracks = Array.from({ length: 6 }, (_, index) => `https://www.listentoyouai.com/music/lan/${index + 1}.mp3`)
 const hongMusicTracks = Array.from({ length: 4 }, (_, index) => `https://www.listentoyouai.com/music/hong/${index + 1}.mp3`)
 const currentMusicList = ref(lanMusicTracks.slice())
 
-const applyMusicSeriesByBg = (bgValue, shouldAutoplay = false) => {
+const applyMusicSeriesByBg = (bgValue) => {
   const useHongSeries = typeof bgValue === 'string' && bgValue.includes('hong')
   currentMusicList.value = (useHongSeries ? hongMusicTracks : lanMusicTracks).slice()
-
-  if (!shouldAutoplay || !musicPlayerRef.value) {
-    return
-  }
-
-  if (typeof musicPlayerRef.value.setCurrentIndex === 'function') {
-    musicPlayerRef.value.setCurrentIndex(0)
-  }
-
-  if (typeof musicPlayerRef.value.playMusic === 'function') {
-    musicPlayerRef.value.playMusic()
-  }
 }
 
-const handleOverlayPlay = () => {
+const startCoachMusic = (resetIndex = true) => {
   if (!musicPlayerRef.value) {
     return
   }
 
-  if (typeof musicPlayerRef.value.setCurrentIndex === 'function') {
+  if (resetIndex && typeof musicPlayerRef.value.setCurrentIndex === 'function') {
     musicPlayerRef.value.setCurrentIndex(0)
   }
 
   if (typeof musicPlayerRef.value.playMusic === 'function') {
     musicPlayerRef.value.playMusic()
-    showMusicOverlay.value = false
+    isMusicPlaying.value = true
   }
 }
 
 const handleMusicPlay = () => {
-  showMusicOverlay.value = false
+  isMusicPlaying.value = true
+}
+
+const handleMusicPause = () => {
+  isMusicPlaying.value = false
+}
+
+const handleMusicStop = () => {
+  isMusicPlaying.value = false
 }
 
 const stopTrainMusic = () => {
   if (musicPlayerRef.value && typeof musicPlayerRef.value.stopMusic === 'function') {
     musicPlayerRef.value.stopMusic()
   }
-  showMusicOverlay.value = true
+  isMusicPlaying.value = false
 }
 
 // 获取当前日期
@@ -235,17 +233,34 @@ const days = ref([]);
 
 const currentMode = ref(0)//0普通模式1教练模式
 
+const setTabActive = (index, state) => {
+  activeTabs.value[index] = state
+}
+
+const toggleTabState = (index) => {
+  setTabActive(index, !activeTabs.value[index])
+}
+
 const toggleModel = () => {
-  currentBtn.value = 0;
-  currentMode.value = currentMode.value == 0 ? 1 : 0
+  const nextMode = currentMode.value === 0 ? 1 : 0
+  currentMode.value = nextMode
+  setTabActive(0, nextMode === 1)
+
+  if (nextMode === 1) {
+    nextTick(() => {
+      startCoachMusic(true)
+    })
+  } else {
+    stopTrainMusic()
+  }
 }
 
 const handleCustomAI = () => {
+  toggleTabState(1)
   // 使用 redirectTo 防止页面栈不断累积，避免 webview 数量超限
   uni.redirectTo({
     url: '/pages/user/aiTeacherInfo'
   })
-  // currentBtn.value = 1
   // currentMode.value = 1
 }
 
@@ -399,7 +414,17 @@ onShow(() => {
   //初始化背景
   currentBg.value = uni.getStorageSync('currentBg') || currentBg.value;
   currentBgImage.value = uni.getStorageSync('currentBgImage') || currentBgImage.value;
-  applyMusicSeriesByBg(currentBg.value, !showMusicOverlay.value);
+  applyMusicSeriesByBg(currentBg.value);
+  setTabActive(0, currentMode.value === 1)
+  setTabActive(2, typeof currentBg.value === 'string' && currentBg.value.includes('hong'))
+
+  if (currentMode.value === 1) {
+    nextTick(() => {
+      startCoachMusic(false)
+    })
+  } else {
+    stopTrainMusic()
+  }
 
   initDateData()
   // clearAgeInfo()
@@ -431,6 +456,7 @@ const resetSex = () => {
 };
 
 const toggleBg = () => {
+  const shouldResume = currentMode.value === 1 && isMusicPlaying.value
   //获取本地缓存的当前背景图片
   if (currentBg.value === 'https://www.listentoyouai.com/images/lan.gif') {
     currentBg.value = 'https://www.listentoyouai.com/images/hong.gif';
@@ -439,9 +465,15 @@ const toggleBg = () => {
     currentBg.value = 'https://www.listentoyouai.com/images/lan.gif';
     currentBgImage.value = '/static/img/bluebg.png';
   }
-  currentBtn.value = 2
+  setTabActive(2, typeof currentBg.value === 'string' && currentBg.value.includes('hong'))
 
-  applyMusicSeriesByBg(currentBg.value, !showMusicOverlay.value);
+  applyMusicSeriesByBg(currentBg.value);
+
+  if (shouldResume) {
+    nextTick(() => {
+      startCoachMusic(true)
+    })
+  }
 
 
   //背景缓存到本地localStorage
