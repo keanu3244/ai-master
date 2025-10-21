@@ -235,6 +235,17 @@ export default {
       const newName = (this.tempNickName || '').trim();
       if (newName) {
         this.$set(this.userInfo, 'nickName', newName);
+        // 保存到服务端
+        this.updateUserInfoServer({ username: newName });
+      } else {
+        // 不允许为空，提示用户补充
+        if (uni.$u && uni.$u.toast) {
+          uni.$u.toast('名称不能为空，请输入');
+        } else {
+          uni.showToast({ title: '名称不能为空，请输入', icon: 'none' });
+        }
+        this.editingName = true;
+        return;
       }
       this.editingName = false;
     },
@@ -244,15 +255,29 @@ export default {
       const index = parseInt(e.detail.value);
       if (index === 0) {
         this.$set(this.userInfo, 'sex', 0);
+        // 仅更新性别
+        this.updateUserInfoServer({ sex: 0 });
       } else if (index === 1) {
         this.$set(this.userInfo, 'sex', 1);
+        // 仅更新性别
+        this.updateUserInfoServer({ sex: 1 });
       }
     },
 
     // 生日选择
     onBirthdayChange(e) {
       const date = e.detail.value;
+      if (!date) {
+        if (uni.$u && uni.$u.toast) {
+          uni.$u.toast('生日不能为空，请选择');
+        } else {
+          uni.showToast({ title: '生日不能为空，请选择', icon: 'none' });
+        }
+        return;
+      }
       this.$set(this.userInfo, 'user_birthday', date);
+      // 仅更新生日
+      this.updateUserInfoServer({ user_birthday: date });
     },
 
 
@@ -325,6 +350,97 @@ export default {
         return false;
       }
       return false;
+    },
+
+    // 将编辑后的资料更新到后端
+    async updateUserInfoServer(partial = {}) {
+      try {
+        // 组装完整负载：要求所有字段都非空后才发请求
+        const username = Object.prototype.hasOwnProperty.call(partial, 'username')
+          ? (partial.username || '').toString().trim()
+          : (this.userInfo.nickName || '').toString().trim();
+        const sexRaw = Object.prototype.hasOwnProperty.call(partial, 'sex')
+          ? partial.sex
+          : this.userInfo.sex;
+        const sex = typeof sexRaw === 'string' ? parseInt(sexRaw) : sexRaw;
+        const user_birthday = Object.prototype.hasOwnProperty.call(partial, 'user_birthday')
+          ? partial.user_birthday
+          : this.userInfo.user_birthday;
+
+        // 前置校验：任何一项为空都不发起请求
+        if (!username) {
+          uni.$u && uni.$u.toast ? uni.$u.toast('名称不能为空，请输入') : uni.showToast({ title: '名称不能为空，请输入', icon: 'none' });
+          return false;
+        }
+        if (!(sex === 0 || sex === 1)) {
+          uni.$u && uni.$u.toast ? uni.$u.toast('性别不能为空，请选择') : uni.showToast({ title: '性别不能为空，请选择', icon: 'none' });
+          return false;
+        }
+        if (!user_birthday) {
+          uni.$u && uni.$u.toast ? uni.$u.toast('生日不能为空，请选择') : uni.showToast({ title: '生日不能为空，请选择', icon: 'none' });
+          return false;
+        }
+
+        let token = uni.getStorageSync('token');
+        if (!token) {
+          const ok = await this.login({ silent: true });
+          if (!ok) {
+          	uni.$u && uni.$u.toast ? uni.$u.toast('未登录，无法更新资料') : uni.showToast({ title: '未登录', icon: 'none' });
+            return false;
+          }
+          token = uni.getStorageSync('token');
+        }
+
+        // 发送完整字段，后端按需更新
+        const payload = { username, sex, user_birthday };
+
+        // 显示轻提示
+        uni.showLoading({ title: '保存中…', mask: true });
+
+        const res = await uni.request({
+          url: 'https://www.listentoyouai.com:80/modify_data/user_api',
+          method: 'POST',
+          header: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Authorization': `Bearer ${token}`
+          },
+          data: payload
+        });
+
+        uni.hideLoading();
+
+        if (res.statusCode === 200) {
+          // 兼容后端返回新 token 的情况
+          const data = res.data || {};
+          if (data.access_token) {
+            uni.setStorageSync('token', data.access_token);
+          }
+          uni.$u && uni.$u.toast ? uni.$u.toast('已更新') : uni.showToast({ title: '已更新', icon: 'success' });
+
+          // 与服务器保持一致，再次拉取资料（避免后端格式化）
+          this.fetchUserInfo(true);
+          return true;
+        }
+        if (res.statusCode === 401) {
+          // token 失效时重登一次并重试
+          const ok = await this.login({ silent: true });
+          if (ok) {
+            return this.updateUserInfoServer(partial);
+          }
+          uni.$u && uni.$u.toast ? uni.$u.toast('登录过期，请重试') : uni.showToast({ title: '登录过期', icon: 'none' });
+          return false;
+        }
+
+        // 其他错误
+        const msg = (res.data && (res.data.message || res.data.msg)) || '更新失败';
+        uni.$u && uni.$u.toast ? uni.$u.toast(msg) : uni.showToast({ title: msg, icon: 'none' });
+        return false;
+      } catch (err) {
+        uni.hideLoading();
+        console.error('更新用户信息异常:', err);
+        uni.$u && uni.$u.toast ? uni.$u.toast('网络异常，请稍后再试') : uni.showToast({ title: '网络异常', icon: 'none' });
+        return false;
+      }
     },
 
     async logout() {
