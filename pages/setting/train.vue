@@ -232,6 +232,8 @@ const months = ref([]);
 const days = ref([]);
 
 const currentMode = ref(0)//0普通模式1教练模式
+const coachCustId = ref('') // 教练模式：后端需要的客户ID（从历史记录里读取）
+const COACH_WELCOME_TEXT = '欢迎来到小听教练空间'
 
 const setTabActive = (index, state) => {
   activeTabs.value[index] = state
@@ -246,12 +248,20 @@ const toggleModel = () => {
   currentMode.value = nextMode
   setTabActive(0, nextMode === 1)
 
+  // 切换音乐
   if (nextMode === 1) {
     nextTick(() => {
       startCoachMusic(true)
     })
   } else {
     stopTrainMusic()
+  }
+
+  // 切换聊天记录数据源
+  if (nextMode === 1) {
+    loadCoachRecords();
+  } else {
+    loadRecords();
   }
 }
 
@@ -437,7 +447,12 @@ onShow(() => {
     })
     return;
   }
-  loadRecords();
+  // 根据当前模式加载对应聊天记录
+  if (currentMode.value === 1) {
+    loadCoachRecords();
+  } else {
+    loadRecords();
+  }
   fetchAvatarInfo(user)
 });
 
@@ -516,6 +531,10 @@ const fetchAvatarInfo = (user) => {
     success: (res) => {
       if (res.statusCode === 200) { // 假设成功响应的状态码是200
         avatarUrl.value = res.data.headimg
+        // 尝试从用户信息中带出教练会话所需ID
+        if (!coachCustId.value) {
+          coachCustId.value = res.data.cust_id || res.data.weixin_id || ''
+        }
       }
       else if (res.statusCode === 401) {
         uni.$u.toast('toekn失效，请重新登录')
@@ -659,11 +678,127 @@ const loadRecords = () => {
   });
 };
 
-const loadMoreRecords = () => {
-  loadRecords();
+// 教练模式：加载聊天记录（使用专用缓存与接口）
+const loadCoachRecords = () => {
+  const user = uni.getStorageSync('token');
+
+  // 检查本地缓存（教练模式独立缓存）
+  const cachedData = uni.getStorageSync('coachChatRecordsCache');
+  const cacheTimestamp = uni.getStorageSync('coachChatRecordsCacheTime');
+  const currentTime = Date.now();
+  const cacheExpireTime = 24 * 60 * 60 * 1000; // 24小时
+
+  if (cachedData && cacheTimestamp && (currentTime - cacheTimestamp) < cacheExpireTime) {
+    console.log('使用缓存的聊天记录(教练模式)');
+    const records = JSON.parse(cachedData);
+
+    barrageList.value = [];
+    requestBody.value = [];
+    coachCustId.value = ''
+
+    records.forEach(record => {
+      if (!coachCustId.value && record.cust_id) coachCustId.value = record.cust_id;
+      if (record.chat_role === 'user') {
+        barrageList.value.push({ q: record.chat_content });
+        requestBody.value.push({ role: 'user', content: record.chat_content })
+      } else if (record.chat_role === 'assistant') {
+        barrageList.value.push({ a: record.chat_content });
+        requestBody.value.push({ role: 'assistant', content: record.chat_content })
+      }
+    });
+
+    nextTick(() => { scrollToBottom(); });
+    // 确保欢迎语
+    ensureCoachWelcomeMessage();
+    return;
+  }
+
+  // 从服务器拉取教练模式聊天记录
+  uni.request({
+    url: 'https://www.listentoyouai.com:80/query_data/coach_mentor_api',
+    method: 'POST',
+    header: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${user}`
+    },
+    success: (res) => {
+      if (res.statusCode === 200) {
+        const records = res.data || [];
+
+        // 缓存到本地
+        uni.setStorageSync('coachChatRecordsCache', JSON.stringify(records));
+        uni.setStorageSync('coachChatRecordsCacheTime', Date.now());
+
+        barrageList.value = [];
+        requestBody.value = [];
+        coachCustId.value = ''
+
+        records.forEach(record => {
+          if (!coachCustId.value && record.cust_id) coachCustId.value = record.cust_id;
+          if (record.chat_role === 'user') {
+            barrageList.value.push({ q: record.chat_content });
+            requestBody.value.push({ role: 'user', content: record.chat_content })
+          } else if (record.chat_role === 'assistant') {
+            barrageList.value.push({ a: record.chat_content });
+            requestBody.value.push({ role: 'assistant', content: record.chat_content })
+          }
+        });
+
+        nextTick(() => { scrollToBottom(); });
+        // 确保欢迎语
+        ensureCoachWelcomeMessage();
+      } else if (res.statusCode === 401) {
+        uni.$u.toast('请先登录')
+        uni.navigateTo({ url: '/pages/user/my' })
+      }
+    },
+    fail: (err) => {
+      console.error('获取教练模式聊天记录失败', err);
+    }
+  });
 };
 
-// 更新聊天记录缓存
+// 进入教练模式时，确保插入欢迎语（仅一次，不重复）
+const ensureCoachWelcomeMessage = async () => {
+  try {
+    // 若列表中已存在欢迎语则不再插入
+    const exists = barrageList.value.some(i => i.a && i.a.indexOf(COACH_WELCOME_TEXT) !== -1)
+    if (exists) return;
+
+    // 先本地显示
+    barrageList.value.push({ a: COACH_WELCOME_TEXT })
+    requestBody.value.push({ role: 'assistant', content: COACH_WELCOME_TEXT })
+    updateChatCache();
+    nextTick(() => { scrollToBottom(); });
+
+    // 再调用后端插入
+    const token = uni.getStorageSync('token');
+    const payload = { chat_content: COACH_WELCOME_TEXT, chat_role: 'assistant' }
+    if (coachCustId.value) payload.cust_id = coachCustId.value;
+
+    await uni.request({
+      url: 'https://www.listentoyouai.com:80/modify_data/coach_chat_api',
+      method: 'POST',
+      header: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Bearer ${token}`
+      },
+      data: payload
+    })
+  } catch (err) {
+    console.warn('插入教练欢迎语失败(已忽略):', err)
+  }
+}
+
+const loadMoreRecords = () => {
+  if (currentMode.value === 1) {
+    loadCoachRecords();
+  } else {
+    loadRecords();
+  }
+};
+
+// 更新聊天记录缓存（区分普通/教练模式）
 const updateChatCache = () => {
   try {
     // 将 requestBody 转换为与服务器返回格式一致的数据结构
@@ -673,8 +808,10 @@ const updateChatCache = () => {
     }));
 
     // 更新缓存数据和时间戳
-    uni.setStorageSync('chatRecordsCache', JSON.stringify(cacheData));
-    uni.setStorageSync('chatRecordsCacheTime', Date.now());
+    const cacheKey = currentMode.value === 1 ? 'coachChatRecordsCache' : 'chatRecordsCache'
+    const cacheTimeKey = currentMode.value === 1 ? 'coachChatRecordsCacheTime' : 'chatRecordsCacheTime'
+    uni.setStorageSync(cacheKey, JSON.stringify(cacheData));
+    uni.setStorageSync(cacheTimeKey, Date.now());
     console.log('聊天记录缓存已更新');
   } catch (error) {
     console.error('更新缓存失败:', error);
