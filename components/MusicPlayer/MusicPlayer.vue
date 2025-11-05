@@ -13,11 +13,6 @@ export default {
       type: Array,
       default: () => []
     },
-    // 是否自动播放
-    autoPlay: {
-      type: Boolean,
-      default: false
-    }
   },
   data() {
     return {
@@ -55,8 +50,8 @@ export default {
       if (this.musicList.length > 0) {
         if (!this.audioContext) {
           this.audioContext = uni.createInnerAudioContext()
+          this.setupAudioEvents()
         }
-        this.setupAudioEvents()
       }
     },
 
@@ -68,15 +63,23 @@ export default {
       this.audioContext.onEnded(() => {
         this.playNext()
       })
-
+      this.audioContext.onPlay(() => {
+        this.playState = 1
+      })
+      this.audioContext.onPause(() => {
+        this.playState = 2
+      })
+      this.audioContext.onStop(() => {
+        this.playState = 0
+      })
       // 音频播放错误事件
       this.audioContext.onError((error) => {
         console.error('音频播放错误:', error)
         this.playState = 0
-        uni.showToast({
-          title: '音频播放失败',
-          icon: 'none'
-        })
+        // uni.showToast({
+        //   title: '音频播放失败',
+        //   icon: 'none'
+        // })
       })
 
       // 音频可以播放事件
@@ -124,11 +127,44 @@ export default {
         })
       } catch (error) {
         console.error('播放音乐失败:', error)
-        uni.showToast({
-          title: '播放失败',
-          icon: 'none'
+        // uni.showToast({
+        //   title: '播放失败',
+        //   icon: 'none'
+        // })
+      }
+    },
+
+    // 准备并强制播放（供外部调用）
+    prepareAndPlay(options = {}) {
+      if (!this.musicList || this.musicList.length === 0) return
+
+      const config = typeof options === 'number' ? { index: options } : options
+      const targetIndex = typeof config.index === 'number'
+        ? Math.min(Math.max(config.index, 0), this.musicList.length - 1)
+        : this.currentIndex
+
+      if (!this.audioContext) {
+        this.initAudio()
+      }
+
+      if (typeof targetIndex === 'number' && targetIndex !== this.currentIndex) {
+        this.currentIndex = targetIndex
+        this.$emit('indexChange', {
+          index: this.currentIndex,
+          music: this.currentMusic
         })
       }
+
+      this.playMusic()
+    },
+
+    // 外部同步播放状态
+    syncPlayState(state) {
+      let nextState = parseInt(state, 10)
+      if (![0, 1, 2].includes(nextState)) {
+        nextState = 0
+      }
+      this.playState = nextState
     },
 
     // 暂停音乐

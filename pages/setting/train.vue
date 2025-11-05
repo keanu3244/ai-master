@@ -126,13 +126,8 @@
       </view> -->
     </view>
     <view class="music-player-wrapper">
-      <MusicPlayer
-        ref="musicPlayerRef"
-        :music-list="currentMusicList"
-        @play="handleMusicPlay"
-        @pause="handleMusicPause"
-        @stop="handleMusicStop"
-      />
+      <MusicPlayer ref="musicPlayerRef" :music-list="currentMusicList" @play="handleMusicPlay" @pause="handleMusicPause"
+        @stop="handleMusicStop" />
     </view>
   </view>
 </template>
@@ -183,19 +178,34 @@ const applyMusicSeriesByBg = (bgValue) => {
   currentMusicList.value = (useHongSeries ? hongMusicTracks : lanMusicTracks).slice()
 }
 
-const startCoachMusic = (resetIndex = true) => {
-  if (!musicPlayerRef.value) {
-    return
-  }
+const startMusicPlayback = (resetIndex = true) => {
+  const player = musicPlayerRef.value
+  if (!player) return
 
-  if (resetIndex && typeof musicPlayerRef.value.setCurrentIndex === 'function') {
-    musicPlayerRef.value.setCurrentIndex(0)
-  }
+  const execute = () => {
+    if (!musicPlayerRef.value) return
 
-  if (typeof musicPlayerRef.value.playMusic === 'function') {
-    musicPlayerRef.value.playMusic()
+    if (resetIndex && typeof player.prepareAndPlay === 'function') {
+      player.prepareAndPlay({ index: 0 })
+    } else if (typeof player.prepareAndPlay === 'function') {
+      player.prepareAndPlay()
+    } else {
+      if (resetIndex && typeof player.setCurrentIndex === 'function') {
+        player.setCurrentIndex(0)
+      }
+      if (typeof player.playMusic === 'function') {
+        player.playMusic()
+      }
+    }
+
+    if (typeof player.syncPlayState === 'function') {
+      player.syncPlayState(1)
+    }
     isMusicPlaying.value = true
   }
+
+  // 等待列表渲染完成后再触发
+  nextTick(execute)
 }
 
 const handleMusicPlay = () => {
@@ -213,8 +223,32 @@ const handleMusicStop = () => {
 const stopTrainMusic = () => {
   if (musicPlayerRef.value && typeof musicPlayerRef.value.stopMusic === 'function') {
     musicPlayerRef.value.stopMusic()
+    if (typeof musicPlayerRef.value.syncPlayState === 'function') {
+      musicPlayerRef.value.syncPlayState(0)
+    }
   }
   isMusicPlaying.value = false
+}
+
+// 根据模式切换音乐列表，并在需要时触发播放
+const switchPlaylistForMode = (mode, options = {}) => {
+  const { resetIndex = true, autoplay = true } = options
+  const targetList = mode === 1 ? hongMusicTracks : lanMusicTracks
+
+  // 切换资源列表，使用 slice 触发视图更新
+  currentMusicList.value = targetList.slice()
+
+  if (!autoplay) {
+    if (resetIndex && musicPlayerRef.value && typeof musicPlayerRef.value.setCurrentIndex === 'function') {
+      musicPlayerRef.value.setCurrentIndex(0)
+    }
+    if (musicPlayerRef.value && typeof musicPlayerRef.value.syncPlayState === 'function') {
+      musicPlayerRef.value.syncPlayState(0)
+    }
+    return
+  }
+
+  startMusicPlayback(resetIndex)
 }
 
 // 获取当前日期
@@ -248,14 +282,9 @@ const toggleModel = () => {
   currentMode.value = nextMode
   setTabActive(0, nextMode === 1)
 
-  // 切换音乐
-  if (nextMode === 1) {
-    nextTick(() => {
-      startCoachMusic(true)
-    })
-  } else {
-    stopTrainMusic()
-  }
+  // 切换音乐资源并播放对应列表
+  stopTrainMusic()
+  switchPlaylistForMode(nextMode, { resetIndex: true, autoplay: true })
 
   // 切换聊天记录数据源
   if (nextMode === 1) {
@@ -428,13 +457,13 @@ onShow(() => {
   setTabActive(0, currentMode.value === 1)
   setTabActive(2, typeof currentBg.value === 'string' && currentBg.value.includes('hong'))
 
-  if (currentMode.value === 1) {
-    nextTick(() => {
-      startCoachMusic(false)
-    })
-  } else {
-    stopTrainMusic()
-  }
+  // if (currentMode.value === 1) {
+  //   nextTick(() => {
+  //     startCoachMusic(false)
+  //   })
+  // } else {
+  //   stopTrainMusic()
+  // }
 
   initDateData()
   // clearAgeInfo()
@@ -486,7 +515,7 @@ const toggleBg = () => {
 
   if (shouldResume) {
     nextTick(() => {
-      startCoachMusic(true)
+      startMusicPlayback(true)
     })
   }
 
