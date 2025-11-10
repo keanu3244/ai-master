@@ -189,6 +189,12 @@ export default {
           if (tokenData.username) {
             uni.setStorageSync('username', tokenData.username);
           }
+          if (tokenData.weixin_id) {
+            uni.setStorageSync('weixin_id', tokenData.weixin_id);
+          }
+          if (tokenData.cust_id) {
+            uni.setStorageSync('cust_id', tokenData.cust_id);
+          }
           this.isLoggedIn = true;
           this.userInfo = {
             nickName: tokenData.username || '未命名',
@@ -385,7 +391,7 @@ export default {
         if (!token) {
           const ok = await this.login({ silent: true });
           if (!ok) {
-          	uni.$u && uni.$u.toast ? uni.$u.toast('未登录，无法更新资料') : uni.showToast({ title: '未登录', icon: 'none' });
+            uni.$u && uni.$u.toast ? uni.$u.toast('未登录，无法更新资料') : uni.showToast({ title: '未登录', icon: 'none' });
             return false;
           }
           token = uni.getStorageSync('token');

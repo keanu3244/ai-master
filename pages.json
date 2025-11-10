@@ -23,7 +23,7 @@
     {
       "path": "pages/setting/train",
       "style": {
-        "navigationBarTitleText": "AI教练"
+        "navigationBarTitleText": "陪伴教练"
       }
     },
     {

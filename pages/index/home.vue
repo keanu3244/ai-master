@@ -16,13 +16,13 @@
 
     </view>
     <!-- <image src="https://jakewinn.github.io/portals/img/ai_bg1.gif" mode="aspectFill" class="bg_img"></image> -->
-    <view class="rant_wrap" v-if="barrageList.length">
-      <view class="rant_content animate__animated  animate__infinite" v-for="(item, index) in barrageList" :key="index"
-        :style="getBarrageStyle(index)">
-
-        <view class="rant_item">{{ item }}</view>
+    <view class="rant_wrap" v-if="filteredBarrages.length">
+      <view class="rant_content animate__animated animate__infinite" v-for="item in filteredBarrages" :key="item.id"
+        :style="getBarrageStyle(item.lane)">
+        <view class="rant_item">
+          <text class="rant_text">{{ item.content }}</text>
+        </view>
       </view>
-
     </view>
     <view class="footer_wrap">
       <view class="operate_wrap">
@@ -62,28 +62,31 @@
     keyName="label" :defaultIndex="[scenindex]"></comp-picker>
 </template>
 <script setup>
-import {
-  ref,
-  onMounted
-} from 'vue';
-import { onHide, onUnload } from '@dcloudio/uni-app'
-import {
-  request
-} from '@/utils/request.js'
-//const socket = io.connect('http://127.0.0.1:5000');
+import { ref, onMounted, computed } from 'vue';
+import { onHide, onUnload, onShow } from '@dcloudio/uni-app';
 import io from '@hyoga/uni-socket.io';
-import redbg from '@/static/img/redbg.png'
 import MusicPlayer from '@/components/MusicPlayer/MusicPlayer.vue'
+
 const socket = io('wss://www.listentoyouai.com:80', {
   query: {},
   transports: ['websocket', 'polling'],
   timeout: 5000,
 });
-// const socket = io('ws://192.168.0.112:5001', {
-//   query: {},
-//   transports: [ 'websocket', 'polling' ],
-//   timeout: 5000,
-// });
+
+const MAX_BARRAGE_TRACKS = 10
+const LANE_HEIGHT = 72
+const LANE_GAP = 20 // ≈10px 间距
+const MAX_CACHE_ITEMS = 80
+const BARRAGE_CACHE_KEY = 'home_barrage_cache'
+const BARRAGE_CACHE_TIME_KEY = 'home_barrage_cache_time'
+const BARRAGE_CACHE_EXPIRE = 60 * 60 * 1000
+const AUTO_TUCAO_RULES = [
+  { hour: 7, minute: 0, label: '职场', remark: '上班前' },
+  { hour: 15, minute: 0, label: '创业', remark: '上班中' },
+  { hour: 23, minute: 0, label: '情感', remark: '睡前' }
+]
+const DS_SYSTEM_PROMPTS = '有职场、创业、成长、情感、家庭五个标签，请根据用户输入的标签来回答对应标签的一句吐槽内容，字数要求10个字左右'
+
 const scenshow = ref(false)
 const scencolumns = ref([
   [{
@@ -108,45 +111,29 @@ const scencolumns = ref([
     bg: '/static/img/scence/scen5.jpg'
   }]
 ]);
-const scenvalue = ref('职场') // scencolumns.value[0][0].label
+const scenvalue = ref('职场')
 const scenindex = ref(0)
 const handlescen = () => {
   scenshow.value = true
 }
-const handle_confirm = ({
-  index,
-  value
-}) => {
+const handle_confirm = ({ index, value }) => {
   scenshow.value = false
   scenindex.value = index;
   scenvalue.value = value[0].label
-  console.log('index', index)
 }
 
-//ai教练
 const jumppage = () => {
-  uni.navigateTo({
-    url: '/pages/setting/train'
-  })
+  uni.navigateTo({ url: '/pages/setting/train' })
 }
-
 const handleJump = () => {
-  uni.navigateTo({
-    url: '/pages/user/userinfo'
-  })
+  uni.navigateTo({ url: '/pages/user/userinfo' })
 }
 const handleJump2 = () => {
-  uni.navigateTo({
-    url: '/pages/user/my'
-  })
+  uni.navigateTo({ url: '/pages/user/my' })
 }
 const handleJump3 = () => {
-  uni.navigateTo({
-    url: '/pages/user/aiTeacherInfo'
-  })
+  uni.navigateTo({ url: '/pages/user/aiTeacherInfo' })
 }
-
-// 打气
 const handledq = () => {
   uni.$u.toast('内测中')
 }
@@ -156,9 +143,7 @@ const showMusicOverlay = ref(true)
 const tuMusicList = ref(Array.from({ length: 5 }, (_, index) => `https://www.listentoyouai.com/music/tu/${index + 1}.mp3`))
 
 const handleOverlayPlay = () => {
-  if (!musicPlayerRef.value) {
-    return
-  }
+  if (!musicPlayerRef.value) return
   if (typeof musicPlayerRef.value.setCurrentIndex === 'function') {
     musicPlayerRef.value.setCurrentIndex(0)
   }
@@ -167,11 +152,9 @@ const handleOverlayPlay = () => {
     showMusicOverlay.value = false
   }
 }
-
 const handleMusicPlay = () => {
   showMusicOverlay.value = false
 }
-
 const teardownMusic = () => {
   if (musicPlayerRef.value && typeof musicPlayerRef.value.stopMusic === 'function') {
     musicPlayerRef.value.stopMusic()
@@ -179,62 +162,351 @@ const teardownMusic = () => {
   showMusicOverlay.value = true
 }
 
-onHide(teardownMusic)
-onUnload(teardownMusic)
-
-// 发送弹幕
+let socketInitialized = false
+let autoScheduleEnabled = false
+let historyFetched = false
+const socketConnected = ref(false)
+const pendingSocketMessages = []
+const recentLocalMessages = new Set()
+const cachedBulletKeys = new Set()
 const barrageList = ref([])
+const filteredBarrages = computed(() => barrageList.value.filter(item => item.className === scenvalue.value))
 const send_val = ref('')
-const getBarrageStyle = (index) => {
-  // 根据弹幕的 index 设置动画的时长和延迟
-  const delay = index * 0.5; // 
-  const duration = 10 + index; // 动画时长，可根据需要调整
-  return `animation-duration: ${duration}s; animation-delay: ${delay}s;`;
+const autoTucaoTimers = []
+
+const buildFingerprint = (content, className) => `${className || 'default'}__${content}`
+const markLocalFingerprint = (fingerprint) => {
+  recentLocalMessages.add(fingerprint)
+  setTimeout(() => {
+    recentLocalMessages.delete(fingerprint)
+  }, 1000 * 10)
+}
+
+const persistBarrageCache = () => {
+  try {
+    const snapshot = barrageList.value.slice(-MAX_CACHE_ITEMS)
+    uni.setStorageSync(BARRAGE_CACHE_KEY, JSON.stringify(snapshot))
+    uni.setStorageSync(BARRAGE_CACHE_TIME_KEY, Date.now())
+  } catch (err) {
+    console.error('缓存弹幕失败', err)
+  }
+}
+
+const buildBulletCacheKey = (custId, expiration) => {
+  if (!(custId && expiration)) return null
+  return `${custId}__${expiration}`
+}
+
+const findLocalDraft = (content, className) => {
+  return barrageList.value.find(item => !item.serverId && item.content === content && item.className === className)
+}
+
+const attachServerMeta = (entry, { id, expiration_time, cust_id }) => {
+  if (!entry) return false
+  entry.serverId = id || entry.serverId || ''
+  entry.expirationTime = expiration_time || entry.expirationTime || ''
+  entry.cust_id = cust_id || entry.cust_id || ''
+  const cacheKey = buildBulletCacheKey(entry.cust_id, entry.expirationTime)
+  if (cacheKey) {
+    cachedBulletKeys.add(cacheKey)
+    return true
+  }
+  return false
+}
+
+const pushBarrage = ({ content, className, lane, timestamp, serverId, expirationTime, cust_id }) => {
+  const text = (content || '').trim()
+  if (!text) return
+  const cacheKey = buildBulletCacheKey(cust_id, expirationTime)
+  if (cacheKey && cachedBulletKeys.has(cacheKey)) return
+  const assignedLane = typeof lane === 'number' ? lane : Math.floor(Math.random() * MAX_BARRAGE_TRACKS)
+  barrageList.value.push({
+    id: `${Date.now()}_${Math.random().toString(16).slice(2)}`,
+    content: text,
+    className: className || scenvalue.value,
+    lane: assignedLane,
+    timestamp: timestamp || Date.now(),
+    serverId: serverId || '',
+    expirationTime: expirationTime || '',
+    cust_id: cust_id || ''
+  })
+  if (cacheKey) cachedBulletKeys.add(cacheKey)
+  if (barrageList.value.length > MAX_CACHE_ITEMS) {
+    barrageList.value.splice(0, barrageList.value.length - MAX_CACHE_ITEMS)
+  }
+  persistBarrageCache()
+}
+
+const restoreBarrageFromCache = () => {
+  try {
+    const cached = uni.getStorageSync(BARRAGE_CACHE_KEY)
+    const cacheTime = uni.getStorageSync(BARRAGE_CACHE_TIME_KEY)
+    if (!cached || !cacheTime) return
+    if (Date.now() - cacheTime > BARRAGE_CACHE_EXPIRE) return
+    const list = JSON.parse(cached)
+    list.forEach(item => pushBarrage(item))
+  } catch (err) {
+    console.warn('读取缓存弹幕失败', err)
+  }
+}
+
+const handleSocketMessage = (msg) => {
+  const payload = typeof msg === 'string' ? { message: msg } : (msg || {})
+  const text = payload.message || payload.chat_content || payload.content
+  if (!text) return
+  const className = payload.class_name || payload.className || scenvalue.value
+  const fingerprint = buildFingerprint(text, className)
+  if (recentLocalMessages.has(fingerprint)) {
+    recentLocalMessages.delete(fingerprint)
+    const draft = findLocalDraft(text, className)
+    if (draft) {
+      attachServerMeta(draft, {
+        id: payload.id,
+        expiration_time: payload.expiration_time,
+        cust_id: payload.cust_id
+      })
+      persistBarrageCache()
+      return
+    }
+    return
+  }
+  const duplicate = findLocalDraft(text, className)
+  if (duplicate) {
+    attachServerMeta(duplicate, {
+      id: payload.id,
+      expiration_time: payload.expiration_time,
+      cust_id: payload.cust_id
+    })
+    persistBarrageCache()
+    return
+  }
+  pushBarrage({ content: text, className, serverId: payload.id, expirationTime: payload.expiration_time, cust_id: payload.cust_id })
+}
+
+const flushPendingSocketMessages = () => {
+  if (!socketConnected.value) return
+  while (pendingSocketMessages.length) {
+    socket.emit('send_data', pendingSocketMessages.shift())
+  }
+}
+
+const setupSocket = () => {
+  if (socketInitialized) return
+  socketInitialized = true
+  socket.on('connect', () => {
+    socketConnected.value = true
+    flushPendingSocketMessages()
+    if (!historyFetched) {
+      historyFetched = true
+      fetchBulletHistory()
+    }
+  })
+  socket.on('disconnect', () => {
+    socketConnected.value = false
+  })
+  socket.on('broadcast', (msg) => {
+    handleSocketMessage(msg)
+  })
+}
+
+const emitBarrageMessage = ({ content, className, isAuto }) => {
+  const payload = {
+    text_message: {
+      content,
+      username: uni.getStorageSync('username') || '匿名',
+      class_name: className,
+      auto: !!isAuto
+    }
+  }
+  if (socketConnected.value) {
+    socket.emit('send_data', payload)
+  } else {
+    pendingSocketMessages.push(payload)
+  }
+}
+
+const postBarrageRecord = async (content, className) => {
+  try {
+    const token = uni.getStorageSync('token')
+    const cust_id = uni.getStorageSync('cust_id') || ''
+    const res = await uni.request({
+      url: 'https://www.listentoyouai.com:80/modify_data/user_bulletdata_api',
+      method: 'POST',
+      header: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      data: {
+        class_name: className,
+        chat_content: content,
+        cust_id
+      }
+    })
+    if (res.statusCode === 200 && res.data) {
+      const cacheKey = buildBulletCacheKey(cust_id || res.data.cust_id, res.data.expiration_time)
+      if (cacheKey) cachedBulletKeys.add(cacheKey)
+    }
+  } catch (err) {
+    console.error('上传弹幕失败', err)
+  }
+}
+
+const sendBarrageFlow = async ({ content, className, isAuto = false }) => {
+  const text = (content || '').trim()
+  if (!text) return
+  const cls = className || scenvalue.value
+  const localCustId = uni.getStorageSync('cust_id') || ''
+  const fingerprint = buildFingerprint(text, cls)
+  markLocalFingerprint(fingerprint)
+  emitBarrageMessage({ content: text, className: cls, isAuto })
+  pushBarrage({ content: text, className: cls, cust_id: localCustId })
+  await postBarrageRecord(text, cls)
+}
+
+const fetchBulletHistory = async () => {
+  try {
+    const token = uni.getStorageSync('token')
+    const res = await uni.request({
+      url: 'https://www.listentoyouai.com:80/query_data/get_bullet_info_api',
+      method: 'POST',
+      header: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      }
+    })
+    if (res.statusCode === 200 && Array.isArray(res.data)) {
+      res.data.forEach(item => {
+        pushBarrage({
+          content: item.chat_content,
+          className: item.class_name,
+          serverId: item.id,
+          expirationTime: item.expiration_time,
+          cust_id: item.cust_id
+        })
+      })
+    }
+  } catch (err) {
+    console.error('查询弹幕失败', err)
+  }
+}
+
+const getBarrageStyle = (lane = 0) => {
+  const top = lane * (LANE_HEIGHT + LANE_GAP)
+  const duration = 10 + Math.random() * 5
+  const delay = Math.random() * 2
+  return `top: ${top}rpx; animation-duration: ${duration}s; animation-delay: ${delay}s;`
+}
+
+const generateAutoTucao = async (label) => {
+  try {
+    const token = uni.getStorageSync('token')
+    const res = await uni.request({
+      url: 'https://www.listentoyouai.com:80/chat/ds_api',
+      method: 'POST',
+      header: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+      },
+      data: {
+        prompts: JSON.stringify([{ role: 'user', content: label }]),
+        system_prompts: DS_SYSTEM_PROMPTS
+      }
+    })
+    if (res.statusCode === 200) {
+      if (typeof res.data === 'string') return res.data.trim()
+      if (res.data && typeof res.data === 'object') {
+        return (res.data.content || res.data.result || '').trim()
+      }
+    }
+  } catch (err) {
+    console.error('生成自动吐槽失败', err)
+  }
+  return ''
+}
+
+const triggerAutoBarrage = async (label) => {
+  const content = await generateAutoTucao(label)
+  if (!content) return
+  await sendBarrageFlow({ content, className: label, isAuto: true })
+}
+
+const clearAutoTucaoTimers = () => {
+  autoScheduleEnabled = false
+  while (autoTucaoTimers.length) {
+    clearTimeout(autoTucaoTimers.pop())
+  }
+}
+
+const calcDelay = (hour, minute) => {
+  const now = new Date()
+  const target = new Date(now)
+  target.setHours(hour, minute, 0, 0)
+  if (target <= now) {
+    target.setDate(target.getDate() + 1)
+  }
+  return target.getTime() - now.getTime()
+}
+
+const scheduleAutoTucao = () => {
+  clearAutoTucaoTimers()
+  autoScheduleEnabled = true
+  AUTO_TUCAO_RULES.forEach(rule => {
+    const scheduleNext = (delay) => {
+      const timer = setTimeout(() => {
+        const idx = autoTucaoTimers.indexOf(timer)
+        if (idx > -1) autoTucaoTimers.splice(idx, 1)
+        triggerAutoBarrage(rule.label).finally(() => {
+          if (autoScheduleEnabled) {
+            scheduleNext(24 * 60 * 60 * 1000)
+          }
+        })
+      }, delay)
+      autoTucaoTimers.push(timer)
+    }
+    scheduleNext(calcDelay(rule.hour, rule.minute))
+  })
+}
+
+const handleSend = async () => {
+  const user = uni.getStorageSync('token')
+  if (!user) {
+    uni.$u.toast('请先登录')
+    uni.navigateTo({ url: '/pages/user/my' })
+    return
+  }
+  if (!send_val.value) {
+    uni.$u.toast('请输入点文字啦')
+    return
+  }
+  const text = send_val.value
+  send_val.value = ''
+  await sendBarrageFlow({ content: text, className: scenvalue.value })
 }
 
 onMounted(() => {
-  socket.on('connect', () => {
-    // ws连接已建立，此时可以进行socket.io的事件监听或者数据发送操作
-    // 连接建立后，本插件的功能已完成，接下来的操作参考socket.io官方客户端文档即可
-    console.log('ws 已连接');
-    // socket.io 唯一连接id，可以监控这个id实现点对点通讯
-    //const { id } = socket;
-  });
-});
-socket.on('broadcast', (msg) => {
-  // 收到服务器推送的消息，可以跟进自身业务进行操作
-  barrageList.value.push(msg.message)
-  console.log('ws 收到服务器消息：', msg.message);
-});
-const handleSend = () => {
-  const user = uni.getStorageSync('token');
-  if (!user) {
-    uni.$u.toast('请先登录');
-    uni.navigateTo({
-      url: '/pages/user/my'
-    });
-    return;
-  }
-  if (!send_val.value) {
-    uni.$u.toast('请输入点文字啦');
-    return;
-  }
-  //console.log('send_val', send_val)
-  // 测试
-  //barrageList.value.push(send_val.value)
-  const text = send_val.value
-  const message = {
-    content: send_val.value,
-    username: uni.getStorageSync('username')// 如果有用户信息
-    //group: scenvalue
-  };
-  // 主动向服务器发送数据
-  socket.emit('send_data', {
-    text_message: message
-  });
-  console.log('ws 发送服务器消息：', message);
-  send_val.value = '';
-};
+  setupSocket()
+  restoreBarrageFromCache()
+  setTimeout(() => {
+    if (!historyFetched) {
+      historyFetched = true
+      fetchBulletHistory()
+    }
+  }, 3000)
+})
+
+onShow(() => {
+  scheduleAutoTucao()
+})
+
+onHide(() => {
+  teardownMusic()
+  clearAutoTucaoTimers()
+})
+
+onUnload(() => {
+  teardownMusic()
+  clearAutoTucaoTimers()
+})
 </script>
 
 
@@ -350,32 +622,39 @@ const handleSend = () => {
   }
 
   .rant_wrap {
-    max-height: 600rpx;
+    position: relative;
+    height: calc((72rpx + 20rpx) * 10);
     overflow: hidden;
     padding: 30rpx 0 0 0;
+    pointer-events: none;
 
     .rant_content {
+      position: absolute;
+      left: 0;
+      width: 100%;
       transform: translateX(100%);
     }
 
     .rant_item {
+      display: inline-flex;
+      align-items: center;
       width: fit-content;
-      height: 72rpx;
+      min-height: 72rpx;
       padding: 16rpx 24rpx;
-      margin-bottom: 24rpx;
       font-family: PingFang SC, PingFang SC;
       font-weight: normal;
       font-size: 28rpx;
       color: #4B052F;
       line-height: 40rpx;
       text-align: left;
-      font-style: normal;
-      text-transform: none;
-      // background: linear-gradient(180deg, #FFFFFF 0%, #FFF9F2 100%);
       background: linear-gradient(180deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 249, 242, 0.6) 100%);
-      border-radius: 36rpx 36rpx 0rpx 36rpx;
+      border-radius: 36rpx 36rpx 0 36rpx;
       border: 1rpx solid rgba(255, 255, 255, 0.8);
       box-sizing: border-box;
+    }
+
+    .rant_text {
+      white-space: nowrap;
     }
   }
 
