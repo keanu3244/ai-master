@@ -143,6 +143,13 @@ const handledq = () => {
   uni.$u.toast('内测中')
 }
 
+const randomAutoUsername = () => {
+  const presets = ['小宇宙⭐', 'nova_7', '风里有我', 'Aurora', 'Alpha-01', '心里住着猫', '夜空', 'Neko', 'Moon@light', '云中有个你']
+  const pick = presets[Math.floor(Math.random() * presets.length)]
+  const suffix = Math.random().toString(36).slice(2, 4)
+  return `${pick}${suffix}`
+}
+
 const send_val = ref('')
 
 const musicPlayerRef = ref(null)
@@ -408,7 +415,7 @@ const sendBarrageFlow = async ({ content, className, isAuto = false }) => {
   if (!text) return
   const cls = className || scenvalue.value
   const localCustId = uni.getStorageSync('cust_id') || ''
-  const username = uni.getStorageSync('username') || '匿名'
+  const username = isAuto ? randomAutoUsername() : (uni.getStorageSync('username') || '匿名')
   const fingerprint = buildFingerprint(text, cls)
   markLocalFingerprint(fingerprint)
   emitBarrageMessage({ content: text, className: cls, isAuto })
@@ -683,6 +690,7 @@ onUnload(() => {
       animation-timing-function: linear;
       animation-iteration-count: infinite;
       animation-fill-mode: forwards;
+      transform: translateX(100%);
     }
 
     .rant_item {
