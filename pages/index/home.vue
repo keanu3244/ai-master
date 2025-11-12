@@ -17,10 +17,10 @@
     </view>
     <!-- <image src="https://jakewinn.github.io/portals/img/ai_bg1.gif" mode="aspectFill" class="bg_img"></image> -->
     <view class="rant_wrap" v-if="filteredBarrages.length">
-      <view class="rant_content animate__animated animate__infinite" v-for="item in filteredBarrages" :key="item.id"
-        :style="getBarrageStyle(item.lane)">
+      <view class="rant_content" v-for="item in filteredBarrages" :key="item.id"
+        :style="getBarrageStyle(item)">
         <view class="rant_item">
-          <text class="rant_text">{{ item.content }}</text>
+          <text class="rant_text">{{ formatDisplayText(item) }}</text>
         </view>
       </view>
     </view>
@@ -76,7 +76,12 @@ const socket = io('wss://www.listentoyouai.com:80', {
 const MAX_BARRAGE_TRACKS = 10
 const LANE_HEIGHT = 72
 const LANE_GAP = 20 // ≈10px 间距
+const DEFAULT_DURATION = 12
+const DEFAULT_DELAY = 0
+const LANE_SPEED_VARIANTS = [9, 10, 12, 14, 16, 18]
 const MAX_CACHE_ITEMS = 80
+let laneCursor = 0
+const laneTimers = Array.from({ length: MAX_BARRAGE_TRACKS }, () => 0)
 const BARRAGE_CACHE_KEY = 'home_barrage_cache'
 const BARRAGE_CACHE_TIME_KEY = 'home_barrage_cache_time'
 const BARRAGE_CACHE_EXPIRE = 60 * 60 * 1000
@@ -138,6 +143,8 @@ const handledq = () => {
   uni.$u.toast('内测中')
 }
 
+const send_val = ref('')
+
 const musicPlayerRef = ref(null)
 const showMusicOverlay = ref(true)
 const tuMusicList = ref(Array.from({ length: 5 }, (_, index) => `https://www.listentoyouai.com/music/tu/${index + 1}.mp3`))
@@ -170,8 +177,19 @@ const pendingSocketMessages = []
 const recentLocalMessages = new Set()
 const cachedBulletKeys = new Set()
 const barrageList = ref([])
-const filteredBarrages = computed(() => barrageList.value.filter(item => item.className === scenvalue.value))
-const send_val = ref('')
+const filteredBarrages = computed(() => {
+  const list = barrageList.value
+  if (!list.length) return list
+  const filtered = list.filter(item => (item.className || '') === (scenvalue.value || ''))
+  return filtered.length ? filtered : list
+})
+
+const formatDisplayText = (item = {}) => {
+  const username = item.user_name || item.username || ''
+  const text = (item.content || '').trim()
+  if (!text) return ''
+  return username ? `${username}：${text}` : text
+}
 const autoTucaoTimers = []
 
 const buildFingerprint = (content, className) => `${className || 'default'}__${content}`
@@ -201,28 +219,53 @@ const findLocalDraft = (content, className) => {
   return barrageList.value.find(item => !item.serverId && item.content === content && item.className === className)
 }
 
-const attachServerMeta = (entry, { id, expiration_time, cust_id }) => {
+const attachServerMeta = (entry, { id, expiration_time, cust_id, user_name, username }) => {
   if (!entry) return false
-  entry.serverId = id || entry.serverId || ''
-  entry.expirationTime = expiration_time || entry.expirationTime || ''
-  entry.cust_id = cust_id || entry.cust_id || ''
-  const cacheKey = buildBulletCacheKey(entry.cust_id, entry.expirationTime)
-  if (cacheKey) {
-    cachedBulletKeys.add(cacheKey)
-    return true
+  let changed = false
+  if (id && !entry.serverId) {
+    entry.serverId = id
+    changed = true
   }
-  return false
+  if (expiration_time && !entry.expirationTime) {
+    entry.expirationTime = expiration_time
+    changed = true
+  }
+  if (cust_id && !entry.cust_id) {
+    entry.cust_id = cust_id
+    changed = true
+  }
+  const author = user_name || username
+  if (author && entry.username !== author) {
+    entry.username = author
+    changed = true
+  }
+  const cacheKey = buildBulletCacheKey(entry.cust_id, entry.expirationTime)
+  if (cacheKey && !cachedBulletKeys.has(cacheKey)) {
+    cachedBulletKeys.add(cacheKey)
+  }
+  return changed
 }
 
-const pushBarrage = ({ content, className, lane, timestamp, serverId, expirationTime, cust_id }) => {
+const pushBarrage = ({ content, className, lane, timestamp, serverId, expirationTime, cust_id, username }) => {
   const text = (content || '').trim()
   if (!text) return
   const cacheKey = buildBulletCacheKey(cust_id, expirationTime)
   if (cacheKey && cachedBulletKeys.has(cacheKey)) return
-  const assignedLane = typeof lane === 'number' ? lane : Math.floor(Math.random() * MAX_BARRAGE_TRACKS)
+  const assignedLane = typeof lane === 'number' ? lane : laneCursor
+  if (typeof lane !== 'number') {
+    laneCursor = (laneCursor + 1) % MAX_BARRAGE_TRACKS
+  }
+  const now = Date.now()
+  const availableAt = laneTimers[assignedLane] || now
+  const delayMs = Math.max(availableAt - now, 0)
+  const duration = LANE_SPEED_VARIANTS[assignedLane % LANE_SPEED_VARIANTS.length]
+  laneTimers[assignedLane] = availableAt + duration * 1000
   barrageList.value.push({
     id: `${Date.now()}_${Math.random().toString(16).slice(2)}`,
     content: text,
+    username: username || '',
+    duration,
+    delay: delayMs / 1000,
     className: className || scenvalue.value,
     lane: assignedLane,
     timestamp: timestamp || Date.now(),
@@ -255,6 +298,7 @@ const handleSocketMessage = (msg) => {
   const text = payload.message || payload.chat_content || payload.content
   if (!text) return
   const className = payload.class_name || payload.className || scenvalue.value
+  const username = payload.user_name || payload.username || payload.nick_name || ''
   const fingerprint = buildFingerprint(text, className)
   if (recentLocalMessages.has(fingerprint)) {
     recentLocalMessages.delete(fingerprint)
@@ -263,7 +307,8 @@ const handleSocketMessage = (msg) => {
       attachServerMeta(draft, {
         id: payload.id,
         expiration_time: payload.expiration_time,
-        cust_id: payload.cust_id
+        cust_id: payload.cust_id,
+        username
       })
       persistBarrageCache()
       return
@@ -275,12 +320,13 @@ const handleSocketMessage = (msg) => {
     attachServerMeta(duplicate, {
       id: payload.id,
       expiration_time: payload.expiration_time,
-      cust_id: payload.cust_id
+      cust_id: payload.cust_id,
+      username
     })
     persistBarrageCache()
     return
   }
-  pushBarrage({ content: text, className, serverId: payload.id, expirationTime: payload.expiration_time, cust_id: payload.cust_id })
+  pushBarrage({ content: text, className, serverId: payload.id, expirationTime: payload.expiration_time, cust_id: payload.cust_id, username })
 }
 
 const flushPendingSocketMessages = () => {
@@ -325,10 +371,11 @@ const emitBarrageMessage = ({ content, className, isAuto }) => {
   }
 }
 
-const postBarrageRecord = async (content, className) => {
+const postBarrageRecord = async (content, className, username, entry) => {
   try {
     const token = uni.getStorageSync('token')
     const cust_id = uni.getStorageSync('cust_id') || ''
+    const author = username || uni.getStorageSync('username') || ''
     const res = await uni.request({
       url: 'https://www.listentoyouai.com:80/modify_data/user_bulletdata_api',
       method: 'POST',
@@ -339,12 +386,17 @@ const postBarrageRecord = async (content, className) => {
       data: {
         class_name: className,
         chat_content: content,
-        cust_id
+        cust_id,
+        user_name: author
       }
     })
     if (res.statusCode === 200 && res.data) {
-      const cacheKey = buildBulletCacheKey(cust_id || res.data.cust_id, res.data.expiration_time)
-      if (cacheKey) cachedBulletKeys.add(cacheKey)
+      attachServerMeta(entry, {
+        id: res.data.id,
+        expiration_time: res.data.expiration_time,
+        cust_id: cust_id || res.data.cust_id,
+        user_name: author
+      })
     }
   } catch (err) {
     console.error('上传弹幕失败', err)
@@ -356,11 +408,12 @@ const sendBarrageFlow = async ({ content, className, isAuto = false }) => {
   if (!text) return
   const cls = className || scenvalue.value
   const localCustId = uni.getStorageSync('cust_id') || ''
+  const username = uni.getStorageSync('username') || '匿名'
   const fingerprint = buildFingerprint(text, cls)
   markLocalFingerprint(fingerprint)
   emitBarrageMessage({ content: text, className: cls, isAuto })
-  pushBarrage({ content: text, className: cls, cust_id: localCustId })
-  await postBarrageRecord(text, cls)
+  const entry = pushBarrage({ content: text, className: cls, cust_id: localCustId, username })
+  await postBarrageRecord(text, cls, username, entry)
 }
 
 const fetchBulletHistory = async () => {
@@ -381,7 +434,8 @@ const fetchBulletHistory = async () => {
           className: item.class_name,
           serverId: item.id,
           expirationTime: item.expiration_time,
-          cust_id: item.cust_id
+          cust_id: item.cust_id,
+          username: item.user_name
         })
       })
     }
@@ -390,10 +444,11 @@ const fetchBulletHistory = async () => {
   }
 }
 
-const getBarrageStyle = (lane = 0) => {
+const getBarrageStyle = (item = {}) => {
+  const lane = item.lane || 0
   const top = lane * (LANE_HEIGHT + LANE_GAP)
-  const duration = 10 + Math.random() * 5
-  const delay = Math.random() * 2
+  const duration = item.duration || DEFAULT_DURATION
+  const delay = item.delay ?? DEFAULT_DELAY
   return `top: ${top}rpx; animation-duration: ${duration}s; animation-delay: ${delay}s;`
 }
 
@@ -603,8 +658,7 @@ onUnload(() => {
     display: none;
   }
 
-  /* 自定义动画，文字从右到左 */
-  @keyframes moveFromRightToLeft {
+  @keyframes barrageMove {
     0% {
       transform: translateX(100%);
     }
@@ -612,13 +666,6 @@ onUnload(() => {
     100% {
       transform: translateX(-100%);
     }
-  }
-
-  /* 绑定动画到弹幕元素 */
-  .animate__infinite {
-    animation: moveFromRightToLeft linear infinite;
-    animation-duration: 10s;
-    /* 设置动画时长，可以调节速度 */
   }
 
   .rant_wrap {
@@ -632,7 +679,10 @@ onUnload(() => {
       position: absolute;
       left: 0;
       width: 100%;
-      transform: translateX(100%);
+      animation-name: barrageMove;
+      animation-timing-function: linear;
+      animation-iteration-count: infinite;
+      animation-fill-mode: forwards;
     }
 
     .rant_item {
