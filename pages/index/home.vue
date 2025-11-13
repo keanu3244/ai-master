@@ -417,8 +417,7 @@ const generateAutoTucao = async (label) => {
       url: 'https://www.listentoyouai.com:80/chat/ds_api',
       method: 'POST',
       header: {
-        'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
       data: {
         prompts: JSON.stringify([{ role: 'user', content: label }]),
