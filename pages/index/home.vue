@@ -17,8 +17,7 @@
     </view>
     <!-- <image src="https://jakewinn.github.io/portals/img/ai_bg1.gif" mode="aspectFill" class="bg_img"></image> -->
     <view class="rant_wrap" v-if="filteredBarrages.length">
-      <view class="rant_content" v-for="item in filteredBarrages" :key="item.id"
-        :style="getBarrageStyle(item)">
+      <view class="rant_content" v-for="item in filteredBarrages" :key="item.id" :style="getBarrageStyle(item)">
         <view class="rant_item">
           <text class="rant_text">{{ formatDisplayText(item) }}</text>
         </view>
@@ -181,7 +180,6 @@ let autoScheduleEnabled = false
 let historyFetched = false
 const socketConnected = ref(false)
 const pendingSocketMessages = []
-const recentLocalMessages = new Set()
 const cachedBulletKeys = new Set()
 const barrageList = ref([])
 const filteredBarrages = computed(() => {
@@ -199,14 +197,6 @@ const formatDisplayText = (item = {}) => {
 }
 const autoTucaoTimers = []
 
-const buildFingerprint = (content, className) => `${className || 'default'}__${content}`
-const markLocalFingerprint = (fingerprint) => {
-  recentLocalMessages.add(fingerprint)
-  setTimeout(() => {
-    recentLocalMessages.delete(fingerprint)
-  }, 1000 * 10)
-}
-
 const persistBarrageCache = () => {
   try {
     const snapshot = barrageList.value.slice(-MAX_CACHE_ITEMS)
@@ -220,10 +210,6 @@ const persistBarrageCache = () => {
 const buildBulletCacheKey = (custId, expiration) => {
   if (!(custId && expiration)) return null
   return `${custId}__${expiration}`
-}
-
-const findLocalDraft = (content, className) => {
-  return barrageList.value.find(item => !item.serverId && item.content === content && item.className === className)
 }
 
 const attachServerMeta = (entry, { id, expiration_time, cust_id, user_name, username }) => {
@@ -306,33 +292,6 @@ const handleSocketMessage = (msg) => {
   if (!text) return
   const className = payload.class_name || payload.className || scenvalue.value
   const username = payload.user_name || payload.username || payload.nick_name || ''
-  const fingerprint = buildFingerprint(text, className)
-  if (recentLocalMessages.has(fingerprint)) {
-    recentLocalMessages.delete(fingerprint)
-    const draft = findLocalDraft(text, className)
-    if (draft) {
-      attachServerMeta(draft, {
-        id: payload.id,
-        expiration_time: payload.expiration_time,
-        cust_id: payload.cust_id,
-        username
-      })
-      persistBarrageCache()
-      return
-    }
-    return
-  }
-  const duplicate = findLocalDraft(text, className)
-  if (duplicate) {
-    attachServerMeta(duplicate, {
-      id: payload.id,
-      expiration_time: payload.expiration_time,
-      cust_id: payload.cust_id,
-      username
-    })
-    persistBarrageCache()
-    return
-  }
   pushBarrage({ content: text, className, serverId: payload.id, expirationTime: payload.expiration_time, cust_id: payload.cust_id, username })
 }
 
@@ -378,7 +337,7 @@ const emitBarrageMessage = ({ content, className, isAuto }) => {
   }
 }
 
-const postBarrageRecord = async (content, className, username, entry) => {
+const postBarrageRecord = async (content, className, username) => {
   try {
     const token = uni.getStorageSync('token')
     const cust_id = uni.getStorageSync('cust_id') || ''
@@ -394,16 +353,11 @@ const postBarrageRecord = async (content, className, username, entry) => {
         class_name: className,
         chat_content: content,
         cust_id,
-        user_name: author
+        username: author
       }
     })
     if (res.statusCode === 200 && res.data) {
-      attachServerMeta(entry, {
-        id: res.data.id,
-        expiration_time: res.data.expiration_time,
-        cust_id: cust_id || res.data.cust_id,
-        user_name: author
-      })
+      // 服务端推送将再次写入缓存，此处无需重复处理
     }
   } catch (err) {
     console.error('上传弹幕失败', err)
@@ -416,11 +370,8 @@ const sendBarrageFlow = async ({ content, className, isAuto = false }) => {
   const cls = className || scenvalue.value
   const localCustId = uni.getStorageSync('cust_id') || ''
   const username = isAuto ? randomAutoUsername() : (uni.getStorageSync('username') || '匿名')
-  const fingerprint = buildFingerprint(text, cls)
-  markLocalFingerprint(fingerprint)
   emitBarrageMessage({ content: text, className: cls, isAuto })
-  const entry = pushBarrage({ content: text, className: cls, cust_id: localCustId, username })
-  await postBarrageRecord(text, cls, username, entry)
+  await postBarrageRecord(text, cls, username)
 }
 
 const fetchBulletHistory = async () => {
