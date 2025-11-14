@@ -16,13 +16,13 @@
 
     </view>
     <!-- <image src="https://jakewinn.github.io/portals/img/ai_bg1.gif" mode="aspectFill" class="bg_img"></image> -->
-    <view class="rant_wrap" v-if="filteredBarrages.length">
-      <view class="rant_content" v-for="item in filteredBarrages" :key="item.id" :style="getBarrageStyle(item)">
-        <view class="rant_item">
-          <text class="rant_text">{{ formatDisplayText(item) }}</text>
-        </view>
-      </view>
+<view class="rant_wrap" v-if="filteredBarrages.length">
+  <view class="rant_content" v-for="item in filteredBarrages" :key="item.id" :style="getBarrageStyle(item)">
+    <view class="rant_item">
+      <text class="rant_text">{{ formatDisplayText(item) }}</text>
     </view>
+  </view>
+</view>
     <view class="footer_wrap">
       <view class="operate_wrap">
         <view class="operate_item" @click="jumppage">
@@ -61,7 +61,7 @@
     keyName="label" :defaultIndex="[scenindex]"></comp-picker>
 </template>
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { onHide, onUnload, onShow } from '@dcloudio/uni-app';
 import io from '@hyoga/uni-socket.io';
 import MusicPlayer from '@/components/MusicPlayer/MusicPlayer.vue'
@@ -125,6 +125,11 @@ const handle_confirm = ({ index, value }) => {
   scenindex.value = index;
   scenvalue.value = value[0].label
 }
+// 切换类型时重置车道状态，避免继承上个类型的队列造成错位或看似重叠
+watch(scenvalue, () => {
+  laneCursor = 0
+  for (let i = 0; i < laneTimers.length; i++) laneTimers[i] = 0
+})
 
 const jumppage = () => {
   uni.navigateTo({ url: '/pages/setting/train' })
@@ -182,12 +187,10 @@ const socketConnected = ref(false)
 const pendingSocketMessages = []
 const cachedBulletKeys = new Set()
 const barrageList = ref([])
-const filteredBarrages = computed(() => {
-  const list = barrageList.value
-  if (!list.length) return list
-  const filtered = list.filter(item => (item.className || '') === (scenvalue.value || ''))
-  return filtered.length ? filtered : list
-})
+// 仅显示当前选中的类型，避免切换类型时旧类型弹幕继续显示
+const filteredBarrages = computed(() =>
+  barrageList.value.filter(item => (item.className || '') === (scenvalue.value || ''))
+)
 
 const formatDisplayText = (item = {}) => {
   const username = item.user_name || item.username || ''
@@ -253,8 +256,9 @@ const pushBarrage = ({ content, className, lane, timestamp, serverId, expiration
   const delayMs = Math.max(availableAt - now, 0)
   const duration = LANE_SPEED_VARIANTS[assignedLane % LANE_SPEED_VARIANTS.length]
   laneTimers[assignedLane] = availableAt + duration * 1000
+  const id = `${Date.now()}_${Math.random().toString(16).slice(2)}`
   barrageList.value.push({
-    id: `${Date.now()}_${Math.random().toString(16).slice(2)}`,
+    id,
     content: text,
     username: username || '',
     duration,
@@ -271,6 +275,12 @@ const pushBarrage = ({ content, className, lane, timestamp, serverId, expiration
     barrageList.value.splice(0, barrageList.value.length - MAX_CACHE_ITEMS)
   }
   persistBarrageCache()
+  // 自动在首轮动画完成后移除，避免重复循环导致的重叠
+  const totalMs = delayMs + duration * 1000 + 80 /* buffer */
+  setTimeout(() => {
+    const idx = barrageList.value.findIndex(i => i.id === id)
+    if (idx > -1) barrageList.value.splice(idx, 1)
+  }, totalMs)
 }
 
 const restoreBarrageFromCache = () => {
@@ -639,7 +649,7 @@ onUnload(() => {
       width: 100%;
       animation-name: barrageMove;
       animation-timing-function: linear;
-      animation-iteration-count: infinite;
+      animation-iteration-count: 1;
       animation-fill-mode: forwards;
       transform: translateX(100%);
     }
