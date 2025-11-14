@@ -317,6 +317,7 @@ const setupSocket = () => {
     socketConnected.value = false
   })
   socket.on('broadcast', (msg) => {
+    console.log('broadcast111', msg)
     handleSocketMessage(msg)
   })
 }

@@ -79,7 +79,7 @@
       <view class="send_btns" v-if="userInfo">
         <view class="send_btn" @click="toggleModel" :class="activeTabs[0] ? 'active' : ''">
           <image :src="activeTabs[0] ? jiaolian_sel : jiaolian" mode="aspectFill" class="btn"></image>
-          {{ currentMode == 0 ? '普通陪伴' : '教练模式' }}
+          {{ currentMode == 0 ? '教练模式' : '教练模式' }}
         </view>
         <view class="send_btn" @click="handleCustomAI" :class="activeTabs[1] ? 'active' : ''">
           <image :src="activeTabs[1] ? setting_sel : tow" mode="aspectFill" class="btn"></image>

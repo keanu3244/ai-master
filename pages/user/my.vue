@@ -122,7 +122,7 @@ export default {
   },
   methods: {
     handleBack() {
-      uni.navigateBack();
+      uni.reLaunch({ url: '/pages/index/home' });
     },
     getCapsuleInfo() {
       try {
