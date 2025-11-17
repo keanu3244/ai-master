@@ -242,10 +242,14 @@ const attachServerMeta = (entry, { id, expiration_time, cust_id, user_name, user
   return changed
 }
 
-const pushBarrage = ({ content, className, lane, timestamp, serverId, expirationTime, cust_id, username }) => {
+// 是否开启弹幕循环播放（首页需求）
+const ENABLE_LOOP_BARRAGE = true
+
+const pushBarrage = ({ content, className, lane, timestamp, serverId, expirationTime, cust_id, username, isLoop = false }) => {
   const text = (content || '').trim()
   if (!text) return
-  const cacheKey = buildBulletCacheKey(cust_id, expirationTime)
+  // 循环播出的条目不参与服务端去重缓存，避免被当作重复而丢弃
+  const cacheKey = isLoop ? null : buildBulletCacheKey(cust_id, expirationTime)
   if (cacheKey && cachedBulletKeys.has(cacheKey)) return
   const assignedLane = typeof lane === 'number' ? lane : laneCursor
   if (typeof lane !== 'number') {
@@ -257,7 +261,7 @@ const pushBarrage = ({ content, className, lane, timestamp, serverId, expiration
   const duration = LANE_SPEED_VARIANTS[assignedLane % LANE_SPEED_VARIANTS.length]
   laneTimers[assignedLane] = availableAt + duration * 1000
   const id = `${Date.now()}_${Math.random().toString(16).slice(2)}`
-  barrageList.value.push({
+  const item = {
     id,
     content: text,
     username: username || '',
@@ -268,18 +272,35 @@ const pushBarrage = ({ content, className, lane, timestamp, serverId, expiration
     timestamp: timestamp || Date.now(),
     serverId: serverId || '',
     expirationTime: expirationTime || '',
-    cust_id: cust_id || ''
-  })
+    cust_id: cust_id || '',
+    // 标记是否为循环生成的条目
+    isLoop
+  }
+  barrageList.value.push(item)
   if (cacheKey) cachedBulletKeys.add(cacheKey)
   if (barrageList.value.length > MAX_CACHE_ITEMS) {
     barrageList.value.splice(0, barrageList.value.length - MAX_CACHE_ITEMS)
   }
   persistBarrageCache()
-  // 自动在首轮动画完成后移除，避免重复循环导致的重叠
+  // 首轮动画完成后移除。如果开启循环播放，则在移除后重新加入队列以实现循环
   const totalMs = delayMs + duration * 1000 + 80 /* buffer */
   setTimeout(() => {
     const idx = barrageList.value.findIndex(i => i.id === id)
-    if (idx > -1) barrageList.value.splice(idx, 1)
+    if (idx > -1) {
+      const finished = barrageList.value[idx]
+      barrageList.value.splice(idx, 1)
+      // 循环播放：把刚播放完的弹幕重新加入队列末尾
+      // 仅当开启循环、且该条仍属于有效分类时（任意分类都可循环）
+      if (ENABLE_LOOP_BARRAGE) {
+        pushBarrage({
+          content: finished.content,
+          className: finished.className,
+          username: finished.username,
+          // 重新按队列分配车道/时序，避免在同一车道上无间隔重叠
+          isLoop: true
+        })
+      }
+    }
   }, totalMs)
 }
 
