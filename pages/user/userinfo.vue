@@ -257,7 +257,7 @@ const handleSubmit = async () => {
 
       // 页面跳转
       uni.navigateTo({
-        url: '/pages/setting/train'
+        url: '/pages/index/home'
       })
     }
     else if (callbackRes.statusCode === 201) {
