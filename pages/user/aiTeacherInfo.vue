@@ -6,10 +6,10 @@
       <image src="https://www.listentoyouai.com/images/lan.gif" mode="aspectFill" class="bg"></image>
     </view>
     <view class="com_item">
-      Hi，我是小芽教练，为了帮您解决问题，需要了解您的情况？
+      Hi，我是小听教练，为了更好的陪伴您，您期望我是怎么样的呢？
     </view>
     <view class="com_item">
-      您期望AI的性别是？
+      您期望我的性别？
     </view>
     <!-- <view class="com_item colum">
       <span class="sex_item" :class="{act:sexnum == 0}" @click="handleSex(0)">男生</span>
@@ -26,7 +26,7 @@
       </view>
     </view>
     <view class="com_item">
-      接下来告诉我，AI的年龄吧
+      您期待我的年龄？
     </view>
     <view class="com_item colum">
 
@@ -42,7 +42,7 @@
       <!-- <span class="sex_item" @click="calendarShow = true">{{ date }}</span> -->
     </view>
     <view class="com_item">
-      接下来设置AI的性格？
+      您期待我的性格？
     </view>
     <view class="com_item colum">
       <!-- <span class="sex_item" :class="{ act: characterType == 0 }" @click="handleCharacter(0)">成熟稳重</span>
